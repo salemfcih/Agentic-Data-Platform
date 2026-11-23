@@ -1,0 +1,28 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: flink-claims-cdc-autoscaler
+  namespace: aegislake-streaming
+  labels:
+    app.kubernetes.io/part-of: aegislake
+    aegislake.io/control-loop: self-scale
+spec:
+  scaleTargetRef:
+    apiVersion: flink.apache.org/v1beta1
+    kind: FlinkDeployment
+    name: claims-cdc-iceberg-sink
+  pollingInterval: 15
+  cooldownPeriod: 120
+  minReplicaCount: 2
+  maxReplicaCount: 24
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: kafka-prod.mesh.internal:9093
+        consumerGroup: flink-claims-iceberg-cg
+        topic: ent.claims.submitted.v1
+        lagThreshold: "5000"
+        activationLagThreshold: "500"
+        tls: enable
+      authenticationRef:
+        name: kafka-mtls-oauth-trigger-auth

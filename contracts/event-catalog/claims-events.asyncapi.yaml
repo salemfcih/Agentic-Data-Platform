@@ -1,0 +1,64 @@
+asyncapi: 3.0.0
+info:
+  title: Enterprise Claims Domain Event Catalog
+  version: 1.0.0
+  description: >
+    Catalog-as-Code specification governing real-time claim lifecycle events.
+    Merging updates to this spec triggers the AegisLake Self-Evolving Agent to
+    propose downstream Iceberg Silver/Gold models, ODCS contracts, and MCP tools.
+  tags:
+    - name: domain:claims
+    - name: tier:tier-1-critical
+    - name: security:mtls-oauthbearer
+
+servers:
+  production:
+    host: kafka-prod.mesh.internal:9093
+    protocol: kafka-secure
+    description: Sovereign Confluent Kafka cluster on Red Hat OpenShift
+    security:
+      - $ref: '#/components/securitySchemes/oauthBearer'
+
+channels:
+  claimSubmitted:
+    address: ent.claims.submitted.v1
+    messages:
+      ClaimSubmittedEvent:
+        $ref: '#/components/messages/ClaimSubmittedEvent'
+
+operations:
+  publishClaimSubmitted:
+    action: send
+    channel:
+      $ref: '#/channels/claimSubmitted'
+    summary: Core claims engine publishes newly validated claim submissions
+  consumeForLakehouseAndFraud:
+    action: receive
+    channel:
+      $ref: '#/channels/claimSubmitted'
+    summary: Apache Flink ingests into Iceberg Bronze/Silver and updates Feast online features
+
+components:
+  securitySchemes:
+    oauthBearer:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://idp.mesh.internal/oauth2/token
+          availableScopes:
+            claims.produce: Produce to claims domain topics
+            claims.consume: Consume from claims domain topics
+  messages:
+    ClaimSubmittedEvent:
+      name: ClaimSubmittedEvent
+      contentType: application/avro
+      payload:
+        type: object
+        required: [eventId, claimId, beneficiaryToken, claimAmount, currency, submittedAt]
+        properties:
+          eventId: { type: string, format: uuid }
+          claimId: { type: string }
+          beneficiaryToken: { type: string, description: "DLP-tokenized identifier" }
+          claimAmount: { type: number, minimum: 0 }
+          currency: { type: string, enum: [SAR, USD, AED] }
+          submittedAt: { type: string, format: date-time }

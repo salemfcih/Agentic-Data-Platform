@@ -1,0 +1,51 @@
+services:
+  # Sovereign S3-compatible local storage (replaces archived MinIO CE)
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    command: "server -s3 -s3.port=8333"
+    ports:
+      - "8333:8333"
+      - "9333:9333"
+
+  # Apache Polaris — Open Iceberg REST Catalog with Credential Vending
+  polaris:
+    image: apache/polaris:latest
+    ports:
+      - "8182:8181"
+    environment:
+      POLARIS_BOOTSTRAP_CREDENTIALS: "default-realm,root,s3cr3t"
+
+  # Trino — Federated Analytical SQL Engine
+  trino:
+    image: trinodb/trino:latest
+    ports:
+      - "8080:8080"
+
+  # Valkey — High-Performance Online Feature Store & Agent Memory Cache
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6379:6379"
+
+  # Open Policy Agent (OPA) — Zero-Trust MCP & Agent Guardrail Engine
+  opa:
+    image: openpolicyagent/opa:latest
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "/policies"
+    volumes:
+      - ./platform/policies/opa:/policies:ro
+    ports:
+      - "8181:8181"
+
+  # OpenTelemetry Collector — Unified Telemetry Backbone
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./platform/observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
