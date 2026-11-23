@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AegisLake — Interactive SVG Architecture Studio &amp; Exporter</title>
+  <!-- Tailwind CSS CDN for clean dark slate studio chrome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Inter font for crisp UI typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* Base UI styling outside the standalone SVG */
+    html, body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      overscroll-behavior: none;
+    }
+
+    /* Subtle engineering dot-grid canvas background */
+    .studio-canvas-bg {
+      background-color: #0b1120;
+      background-image: radial-gradient(#1e293b 1.25px, transparent 1.25px);
+      background-size: 24px 24px;
+    }
+
+    /* Smooth layer highlight transitions in the interactive viewer */
+    #architecture-svg g[data-layer] {
+      transition: opacity 220ms ease, filter 220ms ease;
+    }
+
+    /* Custom subtle scrollbars for narrow mobile toolbars */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen overflow-hidden flex flex-col select-none">
+
+  <!-- ==================== TOP STUDIO TOOLBAR ==================== -->
+  <header class="bg-slate-900/95 backdrop-blur border-b border-slate-800 px-3 sm:px-4 py-2.5 flex flex-col gap-2.5 z-30 shadow-lg">
+    <!-- Row 1: Studio Identity, Zoom Controls & Export Actions -->
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <!-- Brand / Blueprint Title -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 via-teal-500 to-indigo-600 flex items-center justify-center shadow-md shrink-0">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 2L3 7l9 5 9-5-9-5zM3 17l9 5 9-5M3 12l9 5 9-5" />
+          </svg>
+        </div>
+        <div class="truncate">
+          <h1 class="text-sm sm:text-base font-bold tracking-tight text-white truncate">
+            AegisLake <span class="text-sky-400 font-semibold">SVG Architecture Studio</span>
+          </h1>
+          <p class="text-[11px] text-slate-400 hidden sm:block truncate">
+            Standalone 1920&times;1430 Vector Blueprint &middot; Drag to Pan &middot; Scroll to Zoom
+          </p>
+        </div>
+      </div>
+
+      <!-- Zoom & Viewport Controls -->
+      <div class="flex items-center gap-1 bg-slate-800/90 border border-slate-700/80 rounded-lg p-1">
+        <button id="btn-zoom-out" type="button" title="Zoom Out (-)"
+          class="px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-200 hover:bg-slate-700 active:bg-slate-600 transition cursor-pointer">
+          &minus;
+        </button>
+        <span id="zoom-readout" class="px-2 text-xs font-mono font-semibold text-sky-300 min-w-[52px] text-center">
+          100%
+        </span>
+        <button id="btn-zoom-in" type="button" title="Zoom In (+)"
+          class="px-2.5 py-1.5 rounded-md text-xs font-semibold text-slate-200 hover:bg-slate-700 active:bg-slate-600 transition cursor-pointer">
+          +
+        </button>
+        <div class="w-px h-4 bg-slate-700 mx-0.5"></div>
+        <button id="btn-fit" type="button" title="Fit Entire Diagram to Screen"
+          class="px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-200 hover:bg-slate-700 active:bg-slate-600 transition cursor-pointer">
+          Fit
+        </button>
+        <button id="btn-reset" type="button" title="Reset to 100%"
+          class="px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-200 hover:bg-slate-700 active:bg-slate-600 transition cursor-pointer">
+          100%
+        </button>
+      </div>
+
+      <!-- Client-Side Export Buttons -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button id="btn-export-svg" type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white shadow-sm transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+          </svg>
+          Download .SVG
+        </button>
+        <button id="btn-export-png" type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-sm transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Export High-Res .PNG
+        </button>
+        <button id="btn-copy-svg" type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-slate-100 shadow-sm transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          Copy SVG Code
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 2: Layer Highlight Filter Pills -->
+    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1 shrink-0">Highlight:</span>
+      <button type="button" data-filter="all"
+        class="filter-btn px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-400/50 transition shrink-0 cursor-pointer">
+        All Layers
+      </button>
+      <button type="button" data-filter="governance"
+        class="filter-btn px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-teal-500/60 hover:text-teal-300 transition shrink-0 cursor-pointer">
+        Zero-Trust Governance
+      </button>
+      <button type="button" data-filter="selfx"
+        class="filter-btn px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-purple-500/60 hover:text-purple-300 transition shrink-0 cursor-pointer">
+        Self-X Control Plane
+      </button>
+      <button type="button" data-filter="lakehouse"
+        class="filter-btn px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-cyan-500/60 hover:text-cyan-300 transition shrink-0 cursor-pointer">
+        Lakehouse &amp; Metalake
+      </button>
+      <button type="button" data-filter="compute"
+        class="filter-btn px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-indigo-500/60 hover:text-indigo-300 transition shrink-0 cursor-pointer">
+        Compute &amp; Semantics
+      </button>
+      <button type="button" data-filter="mlgenai"
+        class="filter-btn px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500/60 hover:text-amber-300 transition shrink-0 cursor-pointer">
+        ML/GenAI &amp; MCP
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== INTERACTIVE PAN/ZOOM VIEWPORT ==================== -->
+  <main id="viewport" class="relative flex-1 w-full overflow-hidden studio-canvas-bg cursor-grab active:cursor-grabbing">
+    <!-- Transformable Stage Container -->
+    <div id="stage" class="absolute top-0 left-0 origin-top-left will-change-transform">
+      <!-- Standalone Publication-Grade SVG Blueprint (1920x1430) -->
+      <div class="rounded-xl shadow-2xl ring-1 ring-slate-700/80 overflow-hidden bg-slate-50">
+        <svg id="architecture-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1430" width="1920" height="1430">
+          <!-- Definitions: Gradients, Drop Shadows & Arrowhead Markers -->
+          <defs>
+            <!-- Deep Navy -> Teal -> Indigo Header Banner Gradient -->
+            <linearGradient id="grad-header" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#0F172A" />
+              <stop offset="48%" stop-color="#0F4C5C" />
+              <stop offset="100%" stop-color="#312E81" />
+            </linearGradient>
+
+            <!-- Subtle Card Drop Shadow -->
+            <filter id="card-shadow" x="-4%" y="-4%" width="108%" height="112%">
+              <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#0F172A" flood-opacity="0.08" />
+            </filter>
+
+            <!-- Arrowhead: Primary Data / AI Flow (Sky Blue) -->
+            <marker id="arrow-primary" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1.2 L 9 5 L 0 8.8 z" fill="#0284C7" />
+            </marker>
+
+            <!-- Arrowhead: Legend Sky Blue (Light) -->
+            <marker id="arrow-primary-light" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1.2 L 9 5 L 0 8.8 z" fill="#38BDF8" />
+            </marker>
+
+            <!-- Arrowhead: Zero-Trust Governance (Teal) -->
+            <marker id="arrow-gov" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1.2 L 9 5 L 0 8.8 z" fill="#0F766E" />
+            </marker>
+
+            <!-- Arrowhead: Legend Teal (Light) -->
+            <marker id="arrow-gov-light" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1.2 L 9 5 L 0 8.8 z" fill="#2DD4BF" />
+            </marker>
+
+            <!-- Arrowhead: Self-X Control Loops (Purple) -->
+            <marker id="arrow-selfx" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1.2 L 9 5 L 0 8.8 z" fill="#6D28D9" />
+            </marker>
+            <marker id="arrow-selfx-rev" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 10 1.2 L 1 5 L 10 8.8 z" fill="#6D28D9" />
+            </marker>
+
+            <!-- Arrowhead: Legend Purple (Light) -->
+            <marker id="arrow-selfx-light" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1.2 L 9 5 L 0 8.8 z" fill="#C084FC" />
+            </marker>
+            <marker id="arrow-selfx-light-rev" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 10 1.2 L 1 5 L 10 8.8 z" fill="#C084FC" />
+            </marker>
+
+            <!-- Arrowhead: Hybrid Portability Bidirectional -->
+            <marker id="arrow-port-r" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1.2 L 9 5 L 0 8.8 z" fill="#34D399" />
+            </marker>
+            <marker id="arrow-port-l" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 10 1.2 L 1 5 L 10 8.8 z" fill="#38BDF8" />
+            </marker>
+          </defs>
+
+          <!-- Clean Canvas Background -->
+          <rect x="0" y="0" width="1920" height="1430" fill="#F8FAFC" />
+
+          <!-- ==================== HEADER BANNER (height 96px) ==================== -->
+          <g id="svg-header">
+            <rect x="0" y="0" width="1920" height="96" fill="url(#grad-header)" />
+            <line x1="0" y1="96" x2="1920" y2="96" stroke="#38BDF8" stroke-width="2" stroke-opacity="0.55" />
+
+            <!-- Left Header Typography -->
+            <text x="26" y="34" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="21.5" font-weight="800" fill="#FFFFFF" letter-spacing="0.4">
+              AEGISLAKE — SELF-EVOLVING AGENTIC DATA &amp; AI PLATFORM ARCHITECTURE
+            </text>
+            <text x="26" y="57" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#E2E8F0">
+              Open Multimodal Lakehouse · Event-First Integration &amp; ODS · 7-Layer GenAI &amp; MCP Runtime · Autonomous 'Self-X' Control Plane
+            </text>
+            <text x="26" y="79" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="11" font-weight="500" fill="#94A3B8">
+              Chief Data Architecture Blueprint by Ahmed Salem | github.com/salemfcih/Agentic-Data-Platform | NIST SP 800-207 · NCA ECC-2:2024 · ISO/IEC 42001
+            </text>
+
+            <!-- Top-Right Flow Legend Box -->
+            <rect x="1392" y="12" width="504" height="72" rx="8" fill="#0F172A" fill-opacity="0.58" stroke="#475569" stroke-width="1.2" />
+            <text x="1408" y="29" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#94A3B8" letter-spacing="0.9">
+              FLOW LEGEND
+            </text>
+
+            <!-- Legend Item 1: Primary Data / AI Flow -->
+            <line x1="1408" y1="48" x2="1446" y2="48" stroke="#38BDF8" stroke-width="2.2" marker-end="url(#arrow-primary-light)" />
+            <text x="1456" y="52" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="11" font-weight="600" fill="#F8FAFC">
+              Primary Data / AI Flow
+            </text>
+
+            <!-- Legend Item 2: Zero-Trust Governance -->
+            <line x1="1648" y1="48" x2="1686" y2="48" stroke="#2DD4BF" stroke-width="2.2" stroke-dasharray="5,3.5" marker-end="url(#arrow-gov-light)" />
+            <text x="1696" y="52" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="11" font-weight="600" fill="#F8FAFC">
+              Zero-Trust Governance
+            </text>
+
+            <!-- Legend Item 3: Self-X Control Loops -->
+            <line x1="1410" y1="70" x2="1446" y2="70" stroke="#C084FC" stroke-width="2.2" stroke-dasharray="5,3.5" marker-start="url(#arrow-selfx-light-rev)" marker-end="url(#arrow-selfx-light)" />
+            <text x="1456" y="74" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="11" font-weight="600" fill="#F8FAFC">
+              Self-X Control Loops (Telemetry · Auto-Heal · Auto-Evolve · Elastic Scale)
+            </text>
+          </g>
+
+          <!-- ==================== DYNAMIC ARCHITECTURE LAYER CONTAINERS ==================== -->
+          <!-- Populated cleanly via deterministic SVG DOM builder below so every coordinate is exact and exportable as pure XML -->
+          <g id="svg-connectors-gov" data-layer="governance"></g>
+          <g id="svg-connectors-selfx" data-layer="selfx"></g>
+          <g id="svg-connectors-flow" data-layer="flow"></g>
+
+          <g id="svg-pillar-left" data-layer="governance"></g>
+          <g id="svg-pillar-right" data-layer="selfx"></g>
+
+          <g id="svg-layer-0" data-layer="sources"></g>
+          <g id="svg-layer-1" data-layer="integration"></g>
+          <g id="svg-layer-2" data-layer="lakehouse"></g>
+          <g id="svg-layer-3" data-layer="compute"></g>
+          <g id="svg-layer-4" data-layer="mlgenai"></g>
+          <g id="svg-layer-5" data-layer="experience"></g>
+
+          <g id="svg-foundation" data-layer="substrate"></g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Bottom-Right Floating Status Hint -->
+    <div class="absolute bottom-3 right-3 z-20 hidden sm:flex items-center gap-2 bg-slate-900/90 backdrop-blur border border-slate-700/80 rounded-lg px-3 py-1.5 text-[11px] text-slate-300 shadow-lg pointer-events-none">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span>Vector Ready &middot; 1920&times;1430 px &middot; Pure Inline SVG Attributes</span>
+    </div>
+  </main>
+
+  <!-- ==================== TOAST NOTIFICATION CONTAINER ==================== -->
+  <div id="toast-container" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col gap-2 items-center"></div>
+
+  <script>
+    /**
+     * ============================================================================
+     * AEGISLAKE SVG ARCHITECTURE GENERATOR & INTERACTIVE STUDIO
+     * ============================================================================
+     * Generates all SVG primitives with explicit inline font-family, font-size,
+     * font-weight, and fill attributes so exported .SVG files open identically
+     * across Chrome, GitHub READMEs, PowerPoint, Draw.io, and Figma.
+     */
+    (function () {
+      'use strict';
+
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const FONT_STACK = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif";
+
+      /* --------------------------------------------------------------------------
+       * Low-Level SVG Element Helpers
+       * -------------------------------------------------------------------------- */
+      function el(tag, attrs = {}, textContent = null) {
+        const node = document.createElementNS(SVG_NS, tag);
+        for (const [k, v] of Object.entries(attrs)) {
+          if (v !== null && v !== undefined) node.setAttribute(k, String(v));
+        }
+        if (textContent !== null) node.textContent = textContent;
+        return node;
+      }
+
+      function addText(parent, x, y, text, opts = {}) {
+        const node = el('text', {
+          x,
+          y,
+          'font-family': FONT_STACK,
+          'font-size': opts.size || 10.5,
+          'font-weight': opts.weight || 400,
+          fill: opts.fill || '#1E293B',
+          'text-anchor': opts.anchor || 'start',
+          'letter-spacing': opts.spacing || null
+        }, text);
+        parent.appendChild(node);
+        return node;
+      }
+
+      /**
+       * Renders a rounded pill badge anchored to the right edge (rightX).
+       * Width is calculated cleanly from label length to prevent clipping.
+       */
+      function addBadge(parent, rightX, y, label, bg, fg, strokeColor = null) {
+        const charW = 5.4;
+        const w = Math.max(40, Math.round(label.length * charW + 14));
+        const h = 16;
+        const x = rightX - w;
+        parent.appendChild(el('rect', {
+          x, y, width: w, height: h, rx: 8,
+          fill: bg,
+          stroke: strokeColor || 'none',
+          'stroke-width': strokeColor ? 0.8 : 0
+        }));
+        addText(parent, x + w / 2, y + 11.2, label, {
+          size: 8.2,
+          weight: 700,
+          fill: fg,
+          anchor: 'middle',
+          spacing: '0.35'
+        });
+        return w;
+      }
+
+      /**
+       * Renders a standard architecture component card with header, pill badge,
+       * subtle divider, and bulleted responsibility lines.
+       */
+      function drawCard(parent, cfg) {
+        const {
+          x, y, w, h,
+          title, badge, bullets,
+          accent = '#0F766E',
+          bg = '#FFFFFF',
+          border = '#CBD5E1',
+          badgeBg = '#CCFBF1',
+          badgeFg = '#0F766E',
+          titleSize = 10.8,
+          bulletSize = 9.8,
+          bulletGap = 17.5,
+          bulletStartOffset = 46,
+          compactHeader = false
+        } = cfg;
+
+        const g = el('g');
+
+        // Card Container
+        g.appendChild(el('rect', {
+          x, y, width: w, height: h, rx: 7,
+          fill: bg,
+          stroke: border,
+          'stroke-width': 1.15,
+          filter: 'url(#card-shadow)'
+        }));
+
+        // Left vertical accent indicator bar
+        g.appendChild(el('rect', {
+          x: x + 0.6,
+          y: y + 6,
+          width: 3.4,
+          height: h - 12,
+          rx: 1.7,
+          fill: accent
+        }));
+
+        // Header Pill Badge (right-aligned)
+        const headerY = compactHeader ? y + 17 : y + 19;
+        const badgeY = compactHeader ? y + 6 : y + 7.5;
+        if (badge) {
+          addBadge(g, x + w - 8, badgeY, badge, badgeBg, badgeFg);
+        }
+
+        // Card Title
+        addText(g, x + 11, headerY, title, {
+          size: titleSize,
+          weight: 700,
+          fill: '#0F172A'
+        });
+
+        // Subtle Header Divider
+        const divY = compactHeader ? y + 26 : y + 29;
+        g.appendChild(el('line', {
+          x1: x + 10, y1: divY, x2: x + w - 10, y2: divY,
+          stroke: '#E2E8F0',
+          'stroke-width': 1
+        }));
+
+        // Bullet List
+        bullets.forEach((line, idx) => {
+          const ly = y + bulletStartOffset + idx * bulletGap;
+          // Crisp bullet dot
+          g.appendChild(el('circle', {
+            cx: x + 14.5,
+            cy: ly - 3.2,
+            r: 2.1,
+            fill: accent
+          }));
+          addText(g, x + 21.5, ly, line, {
+            size: bulletSize,
+            weight: 400,
+            fill: '#334155'
+          });
+        });
+
+        parent.appendChild(g);
+      }
+
+      /**
+       * Renders a horizontal center layer outer frame + colored title header strip.
+       */
+      function drawLayerFrame(parent, x, y, w, h, title, color, tintBg, borderColor) {
+        // Outer rounded container
+        parent.appendChild(el('rect', {
+          x, y, width: w, height: h, rx: 10,
+          fill: tintBg,
+          stroke: borderColor || color,
+          'stroke-width': 1.5
+        }));
+
+        // Rounded top header bar using path (rounded top corners, square bottom)
+        const hh = 28;
+        const r = 9.5;
+        const d = [
+          `M ${x} ${y + r}`,
+          `Q ${x} ${y} ${x + r} ${y}`,
+          `L ${x + w - r} ${y}`,
+          `Q ${x + w} ${y} ${x + w} ${y + r}`,
+          `L ${x + w} ${y + hh}`,
+          `L ${x} ${y + hh} Z`
+        ].join(' ');
+        parent.appendChild(el('path', { d, fill: color }));
+
+        addText(parent, x + 14, y + 18.5, title, {
+          size: 11.4,
+          weight: 800,
+          fill: '#FFFFFF',
+          spacing: '0.45'
+        });
+      }
+
+      /**
+       * Renders a vertical side pillar frame + deep colored 2-line header.
+       */
+      function drawPillarFrame(parent, x, y, w, h, title, subtitle, color, tintBg, subFill) {
+        parent.appendChild(el('rect', {
+          x, y, width: w, height: h, rx: 10,
+          fill: tintBg,
+          stroke: color,
+          'stroke-width': 1.6
+        }));
+
+        const hh = 54;
+        const r = 9.5;
+        const d = [
+          `M ${x} ${y + r}`,
+          `Q ${x} ${y} ${x + r} ${y}`,
+          `L ${x + w - r} ${y}`,
+          `Q ${x + w} ${y} ${x + w} ${y + r}`,
+          `L ${x + w} ${y + hh}`,
+          `L ${x} ${y + hh} Z`
+        ].join(' ');
+        parent.appendChild(el('path', { d, fill: color }));
+
+        addText(parent, x + w / 2, y + 24, title, {
+          size: 12.2,
+          weight: 800,
+          fill: '#FFFFFF',
+          anchor: 'middle',
+          spacing: '0.4'
+        });
+        addText(parent, x + w / 2, y + 43, subtitle, {
+          size: 10.4,
+          weight: 600,
+          fill: subFill,
+          anchor: 'middle'
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 1. LEFT VERTICAL PILLAR — 7. ZERO-TRUST GOVERNANCE (#0F766E)
+       * -------------------------------------------------------------------------- */
+      function buildLeftPillar() {
+        const root = document.getElementById('svg-pillar-left');
+        const px = 18, py = 112, pw = 318, ph = 1182;
+
+        drawPillarFrame(
+          root, px, py, pw, ph,
+          '7. ZERO-TRUST GOVERNANCE',
+          'NIST SP 800-207 · NCA ECC-2:2024',
+          '#0F766E', '#F0FDFA', '#CCFBF1'
+        );
+
+        const cards = [
+          {
+            title: 'Identity & Workload Trust',
+            badge: 'IDENTITY',
+            bullets: [
+              'Ping Identity / Keycloak (OAuth2/OIDC)',
+              'SPIFFE / SPIRE Cryptographic SVIDs',
+              'PKI mTLS for External Partner Feeds',
+              'Zero Static Keys · Short-Lived Tokens'
+            ]
+          },
+          {
+            title: 'Fine-Grained Policy & Privacy',
+            badge: 'POLICY',
+            bullets: [
+              'Apache Ranger (Row/Col Masking)',
+              'OPA Rego (API, MCP & Agent AuthZ)',
+              'Presidio / Cloud DLP PII Discovery',
+              'Polaris Scoped Credential Vending'
+            ]
+          },
+          {
+            title: 'Active Metadata & Catalog',
+            badge: 'METADATA',
+            bullets: [
+              'DataHub (Active Metadata & Lineage)',
+              'OpenLineage Cross-Engine Events',
+              'AsyncAPI 3.0 Event Catalog-as-Code',
+              'Certified Enterprise Business Glossary'
+            ]
+          },
+          {
+            title: 'Data Quality & Contracts',
+            badge: 'CONTRACTS',
+            bullets: [
+              'Soda v4 Automated Quality Gates',
+              'ODCS v3 YAML Data Contracts',
+              'Iceberg Metadata-Level Assertions',
+              'Schema Registry Compatibility Checks'
+            ]
+          },
+          {
+            title: 'Data Product Governance',
+            badge: 'PRODUCTS',
+            bullets: [
+              'Certified Datasets, Dashboards & Models',
+              'Business Owner & Technical Steward',
+              'Freshness SLAs & Reuse-First Catalog',
+              'Bronze \u2192 Silver \u2192 Gold Certification'
+            ]
+          },
+          {
+            title: 'Responsible AI Lifecycle',
+            badge: 'AI SAFETY',
+            bullets: [
+              '6 Stages: Risk \u2192 Dev \u2192 Eval \u2192 Guard',
+              'Bias/Fairness & Red-Team Verification',
+              'Explainability & Mandatory Citations',
+              'Immutable Audit Ledger & HITL Gates'
+            ]
+          },
+          {
+            title: '2026 Lifecycle Audits',
+            badge: '6 ADRS',
+            bullets: [
+              'ADR-001: Ozone/Ceph vs MinIO CE',
+              'ADR-002: Gravitino + Polaris Metalake',
+              'ADR-003: Iceberg WAP vs LakeFS Scope',
+              'ADR-004: Langfuse+Evidently vs WhyLabs',
+              'ADR-005/006: Semantic+MCP & Kafka+dlt'
+            ]
+          }
+        ];
+
+        const cardW = pw - 22; // 296
+        const cardH = 148;
+        const gap = 10;
+        const startY = 178;
+
+        cards.forEach((c, i) => {
+          const isFive = c.bullets.length === 5;
+          drawCard(root, {
+            x: px + 11,
+            y: startY + i * (cardH + gap),
+            w: cardW,
+            h: cardH,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#0F766E',
+            border: '#99F6E4',
+            badgeBg: '#CCFBF1',
+            badgeFg: '#0F766E',
+            titleSize: 10.8,
+            bulletSize: isFive ? 9.6 : 10,
+            bulletGap: isFive ? 19.5 : 23,
+            bulletStartOffset: isFive ? 48 : 50
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 2. RIGHT VERTICAL PILLAR — 6. AUTONOMOUS 'SELF-X' PLANE (#6D28D9)
+       * -------------------------------------------------------------------------- */
+      function buildRightPillar() {
+        const root = document.getElementById('svg-pillar-right');
+        const px = 1584, py = 112, pw = 318, ph = 1182;
+
+        drawPillarFrame(
+          root, px, py, pw, ph,
+          "6. AUTONOMOUS 'SELF-X' PLANE",
+          'Sense \u2192 Plan \u2192 OPA \u2192 Act',
+          '#6D28D9', '#F5F3FF', '#EDE9FE'
+        );
+
+        const cards = [
+          {
+            title: 'Unified Telemetry Backbone',
+            badge: 'TELEMETRY',
+            bullets: [
+              'OpenTelemetry (Metrics · Logs · Traces)',
+              'Grafana LGTM (Mimir · Loki · Tempo)',
+              'OpenLineage Pipeline Graph Events',
+              'Enterprise APM (Dynatrace · Splunk)'
+            ]
+          },
+          {
+            title: 'ML & Agentic Observability',
+            badge: 'AI EVALS',
+            bullets: [
+              'Evidently AI (Data & Concept Drift)',
+              'Langfuse (LLM Traces & Faithfulness)',
+              'Tool-Call Accuracy & Token Cost SLA',
+              'Replaces Discontinued WhyLabs'
+            ]
+          },
+          {
+            title: '1. SELF-OPERATE (AIOps)',
+            badge: 'OPERATE',
+            bullets: [
+              'Auto Iceberg Compaction & Clustering',
+              'Snapshot Expiration & Orphan Cleanup',
+              'Hot/Warm/Cold Object Storage Tiering',
+              'Per-Domain FinOps Cost Attribution'
+            ]
+          },
+          {
+            title: '2. SELF-HEAL (Reliability)',
+            badge: 'HEAL',
+            bullets: [
+              'Zero-Poisoning Iceberg WAP Branches',
+              'Auto-Quarantine Malformed Payloads',
+              'Schema Diff Diagnosis & GitOps PR',
+              'Temporal Orchestrated DLQ Replay'
+            ]
+          },
+          {
+            title: '3. SELF-EVOLVE (Living Stack)',
+            badge: 'EVOLVE',
+            bullets: [
+              'Detects New AsyncAPI / Schema Specs',
+              'Scaffolds SQLMesh / dbt & ODCS PRs',
+              'Flags KPI & Semantic Layer Drift',
+              'Auto-Registers Governed MCP Tools'
+            ]
+          },
+          {
+            title: '4. SELF-IMPROVE (Eval Loop)',
+            badge: 'IMPROVE',
+            bullets: [
+              'Triggers Feast Refresh on Drift',
+              'MLflow CI/CT/CD Retrain & Prompt Tune',
+              'Shadow / Canary Rollout via KServe',
+              'Promotes Only on Statistical Uplift'
+            ]
+          },
+          {
+            title: '5-6. SELF-GOVERN & SCALE',
+            badge: 'GOV+SCALE',
+            bullets: [
+              'Auto-DLP Tagging & Ranger Masking',
+              'OPA Session Kill-Switch on Anomaly',
+              'KEDA Scaling on Kafka Lag & Trino Q',
+              'KServe GPU Scale-to-Zero & Burst',
+              'Budget Quotas & Zero-Trust Enforced'
+            ]
+          }
+        ];
+
+        const cardW = pw - 22; // 296
+        const cardH = 148;
+        const gap = 10;
+        const startY = 178;
+
+        cards.forEach((c, i) => {
+          const isFive = c.bullets.length === 5;
+          drawCard(root, {
+            x: px + 11,
+            y: startY + i * (cardH + gap),
+            w: cardW,
+            h: cardH,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#6D28D9',
+            border: '#DDD6FE',
+            badgeBg: '#EDE9FE',
+            badgeFg: '#6D28D9',
+            titleSize: 10.6,
+            bulletSize: isFive ? 9.6 : 10,
+            bulletGap: isFive ? 19.5 : 23,
+            bulletStartOffset: isFive ? 48 : 50
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 3. CENTER STACK — LAYER 0: DATA SOURCES & ENTERPRISE ECOSYSTEM (#334155)
+       * -------------------------------------------------------------------------- */
+      function buildLayer0() {
+        const root = document.getElementById('svg-layer-0');
+        const x = 374, y = 112, w = 1172, h = 108;
+
+        drawLayerFrame(root, x, y, w, h, '0. DATA SOURCES & ENTERPRISE ECOSYSTEM', '#334155', '#F1F5F9', '#64748B');
+
+        const cards = [
+          {
+            title: 'OLTP & Core Systems',
+            badge: 'CORE DB',
+            bullets: ['Oracle · PostgreSQL · ERP · CRM', 'Operational Transactional Stores']
+          },
+          {
+            title: 'Microservices & Producers',
+            badge: 'EVENTS',
+            bullets: ['Domain Services Publishing Events', 'Canonical Avro / JSON Payloads']
+          },
+          {
+            title: 'External APIs & SaaS',
+            badge: 'API/SAAS',
+            bullets: ['Partner & Regulatory REST APIs', 'SaaS Platforms & Live Webhooks']
+          },
+          {
+            title: 'B2B Feeds & Unstructured',
+            badge: 'MULTIMODAL',
+            bullets: ['Partner SFTP / CSV / XML Batches', 'PDFs · Forms · Images · Audio · Video']
+          }
+        ];
+
+        const cw = 278, gap = 12, ch = 64, cy = y + 36;
+        cards.forEach((c, i) => {
+          drawCard(root, {
+            x: x + 12 + i * (cw + gap),
+            y: cy,
+            w: cw,
+            h: ch,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#334155',
+            border: '#CBD5E1',
+            badgeBg: '#E2E8F0',
+            badgeFg: '#334155',
+            titleSize: 10.6,
+            bulletSize: 9.8,
+            bulletGap: 16,
+            bulletStartOffset: 41,
+            compactHeader: true
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 4. CENTER STACK — LAYER 1: INTEGRATION, INGESTION & ODS (#0369A1)
+       * -------------------------------------------------------------------------- */
+      function buildLayer1() {
+        const root = document.getElementById('svg-layer-1');
+        const x = 374, y = 244, w = 1172, h = 128;
+
+        drawLayerFrame(root, x, y, w, h, '1. UNIFIED INTEGRATION, INGESTION & OPERATIONAL DATA STORE (ODS)', '#0369A1', '#F0F9FF', '#0284C7');
+
+        const cards = [
+          { title: 'API Gateway', badge: 'API', bullets: ['Apigee Hybrid / Kong', 'mTLS · OAuth2 · Quota', 'Expose APIs as MCP'] },
+          { title: 'Event Backbone', badge: 'STREAM', bullets: ['Confluent Kafka / CFK', 'Schema Registry Avro', 'Replayable Event Log'] },
+          { title: 'Zero-Code CDC', badge: 'CDC', bullets: ['Debezium / Connect', 'Oracle/PG Log Sync', 'Zero Custom Code'] },
+          { title: 'Modern ELT', badge: 'ELT', bullets: ['dlt / Airbyte Loads', 'Schema-Evolving ELT', 'Replaces n8n Bulk'] },
+          { title: 'B2B / MFT Edge', badge: 'MFT', bullets: ['Informatica IDMC', 'Apache NiFi Routing', 'SFTP & Provenance'] },
+          { title: 'ODS & MDM', badge: 'ODS', bullets: ['Operational Store', 'MDM Golden Records', 'Near-Real-Time API'] }
+        ];
+
+        const cw = 183, gap = 10, ch = 84, cy = y + 36;
+        cards.forEach((c, i) => {
+          drawCard(root, {
+            x: x + 12 + i * (cw + gap),
+            y: cy,
+            w: cw,
+            h: ch,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#0369A1',
+            border: '#BAE6FD',
+            badgeBg: '#E0F2FE',
+            badgeFg: '#0369A1',
+            titleSize: 10.3,
+            bulletSize: 9.6,
+            bulletGap: 16.5,
+            bulletStartOffset: 42,
+            compactHeader: true
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 5. CENTER STACK — LAYER 2: LAKEHOUSE & FEDERATED METALAKE (#1F4E5F)
+       * -------------------------------------------------------------------------- */
+      function buildLayer2() {
+        const root = document.getElementById('svg-layer-2');
+        const x = 374, y = 396, w = 1172, h = 208;
+
+        drawLayerFrame(root, x, y, w, h, '2. OPEN MULTIMODAL LAKEHOUSE & FEDERATED METALAKE', '#1F4E5F', '#ECFEFF', '#0E7490');
+
+        const topCards = [
+          {
+            title: 'Sovereign Object Storage',
+            badge: 'STORAGE',
+            bullets: ['Apache Ozone / Ceph RGW / S3', 'Replaces Archived MinIO CE', 'Hot / Warm / Archival Tiering']
+          },
+          {
+            title: 'Apache Iceberg v3 Tables',
+            badge: 'LAKEHOUSE',
+            bullets: ['Medallion: Bronze · Silver · Gold', 'Native Write-Audit-Publish (WAP)', 'ACID · Time Travel · Hidden Part.']
+          },
+          {
+            title: 'Unstructured Versioning',
+            badge: 'MULTIMODAL',
+            bullets: ['LakeFS (AI Corpora Only)', 'Git-Like Branch/Tag for PDFs,', 'Audio, Video & Model Weights']
+          },
+          {
+            title: 'Hybrid Knowledge Store',
+            badge: 'VEC+GRAPH',
+            bullets: ['Qdrant / LanceDB (Vector Index)', 'Neo4j (Entity Knowledge Graph)', 'ACL-Tagged Document Chunks']
+          }
+        ];
+
+        const cw = 278, gap = 12, ch = 96, cy = y + 36;
+        topCards.forEach((c, i) => {
+          drawCard(root, {
+            x: x + 12 + i * (cw + gap),
+            y: cy,
+            w: cw,
+            h: ch,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#1F4E5F',
+            border: '#A5F3FC',
+            badgeBg: '#CFFAFE',
+            badgeFg: '#155E75',
+            titleSize: 10.6,
+            bulletSize: 9.8,
+            bulletGap: 18,
+            bulletStartOffset: 47
+          });
+        });
+
+        // Bottom Row: 2 Wide Emerald-Tinted Catalog Banners
+        const banners = [
+          {
+            title: 'Apache Polaris (Iceberg REST Catalog)',
+            badge: 'ICEBERG REST',
+            desc: 'ASF Top-Level REST Spec · Two-Level RBAC · Short-Lived S3/Ozone Credential Vending'
+          },
+          {
+            title: 'Apache Gravitino (Federated Metalake)',
+            badge: 'METALAKE',
+            desc: 'Unified Namespace Across Iceberg, Kafka Topics, Filesets & AI Models \u2192 Ranger Pushdown'
+          }
+        ];
+
+        const bw = 568, bh = 54, by = y + 142;
+        banners.forEach((b, i) => {
+          const bx = x + 12 + i * (bw + 12);
+          const g = el('g');
+
+          g.appendChild(el('rect', {
+            x: bx, y: by, width: bw, height: bh, rx: 7,
+            fill: '#ECFDF5',
+            stroke: '#10B981',
+            'stroke-width': 1.35,
+            filter: 'url(#card-shadow)'
+          }));
+          g.appendChild(el('rect', {
+            x: bx + 0.6, y: by + 6, width: 4, height: bh - 12, rx: 2,
+            fill: '#059669'
+          }));
+
+          addBadge(g, bx + bw - 10, by + 7.5, b.badge, '#D1FAE5', '#065F46', '#6EE7B7');
+          addText(g, bx + 13, by + 20, b.title, {
+            size: 11,
+            weight: 800,
+            fill: '#064E3B'
+          });
+          addText(g, bx + 13, by + 40, b.desc, {
+            size: 9.9,
+            weight: 500,
+            fill: '#065F46'
+          });
+
+          root.appendChild(g);
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 6. CENTER STACK — LAYER 3: COMPUTE, SEMANTICS & ORCHESTRATION (#4338CA)
+       * -------------------------------------------------------------------------- */
+      function buildLayer3() {
+        const root = document.getElementById('svg-layer-3');
+        const x = 374, y = 628, w = 1172, h = 128;
+
+        drawLayerFrame(root, x, y, w, h, '3. ELASTIC COMPUTE, TRANSFORMATION, SEMANTIC LAYER & ORCHESTRATION', '#4338CA', '#EEF2FF', '#4F46E5');
+
+        const cards = [
+          { title: 'Stream Compute', badge: 'FLINK', bullets: ['Apache Flink (K8s)', 'Stateful CDC Joins', 'Real-Time Features'] },
+          { title: 'Batch & AI', badge: 'SPARK+RAY', bullets: ['Apache Spark + Ray', 'Petabyte ETL/Comp.', 'Multimodal AI Prep'] },
+          { title: 'SQL Transforms', badge: 'ELT/SQL', bullets: ['SQLMesh / dbt Core', 'Data Vault / Medall.', 'Tests + OpenLineage'] },
+          { title: 'SQL & Fast OLAP', badge: 'SERVING', bullets: ['Trino (Federated)', 'StarRocks (Sub-50ms)', 'Zero-Copy Virtual.'] },
+          { title: 'Semantic Layer', badge: 'KPI TRUTH', bullets: ['Cube / MetricFlow', 'Certified KPI Truth', 'Zero LLM SQL Drift'] },
+          { title: 'Orchestration', badge: 'ORCHEST.', bullets: ['Airflow 3.x (Data)', 'Temporal (Agents)', 'Durable & Asset-Led'] }
+        ];
+
+        const cw = 183, gap = 10, ch = 84, cy = y + 36;
+        cards.forEach((c, i) => {
+          drawCard(root, {
+            x: x + 12 + i * (cw + gap),
+            y: cy,
+            w: cw,
+            h: ch,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#4338CA',
+            border: '#C7D2FE',
+            badgeBg: '#E0E7FF',
+            badgeFg: '#3730A3',
+            titleSize: 10.1,
+            bulletSize: 9.6,
+            bulletGap: 16.5,
+            bulletStartOffset: 42,
+            compactHeader: true
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 7. CENTER STACK — LAYER 4: ML, GENAI & AGENTIC RUNTIME (#B45309)
+       * -------------------------------------------------------------------------- */
+      function buildLayer4() {
+        const root = document.getElementById('svg-layer-4');
+        const x = 374, y = 780, w = 1172, h = 268;
+
+        drawLayerFrame(root, x, y, w, h, '4. UNIFIED ML, GENAI & 7-SUB-CAPABILITY AGENTIC EXECUTION PLANE', '#B45309', '#FFFBEB', '#D97706');
+
+        // Row 1: 4 cards
+        const row1 = [
+          {
+            title: 'Knowledge Build Pipelines',
+            badge: 'SUB-CAP 1-2',
+            bullets: ['Document AI / OCR & Parsing', 'Semantic Chunking & Embeddings', 'Metadata + ACL Security Tagging']
+          },
+          {
+            title: 'Hybrid Retrieval Layer',
+            badge: 'SUB-CAP 3',
+            bullets: ['BM25 + Vector + Graph Search', 'Cross-Encoder Reranking', 'Context Builder & Citations Pkg']
+          },
+          {
+            title: 'Feast Feature Store',
+            badge: 'MLOPS',
+            bullets: ['Offline Store: Apache Iceberg', 'Online Store: Valkey (<10ms)', 'Zero Training-Serving Skew']
+          },
+          {
+            title: 'MLflow 3.x Registry',
+            badge: 'REGISTRY',
+            bullets: ['Models, Prompts & Eval Runs', 'CI/CT/CD Artifact Versioning', 'Reproducible Dataset Snapshots']
+          }
+        ];
+
+        const cw1 = 278, gap1 = 12, ch1 = 100, cy1 = y + 36;
+        row1.forEach((c, i) => {
+          drawCard(root, {
+            x: x + 12 + i * (cw1 + gap1),
+            y: cy1,
+            w: cw1,
+            h: ch1,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#B45309',
+            border: '#FDE68A',
+            badgeBg: '#FEF3C7',
+            badgeFg: '#92400E',
+            titleSize: 10.5,
+            bulletSize: 9.8,
+            bulletGap: 18.5,
+            bulletStartOffset: 49
+          });
+        });
+
+        // Row 2: 3 wide cards
+        const row2 = [
+          {
+            title: 'Foundation Model Access & Serving (KServe)',
+            badge: 'SUB-CAP 6-7',
+            bullets: [
+              'LLM Gateway: On-Prem vLLM \u2194 Cloud Routing & Fallback',
+              'Classical ML: NVIDIA Triton / ONNX Runtime (<50ms SLA)',
+              'Token Rate Limits, Cost Controls & Secrets Isolation'
+            ]
+          },
+          {
+            title: 'Governed MCP & A2A Gateway (Zero-Trust)',
+            badge: 'SUB-CAP 5/7',
+            bullets: [
+              'Central MCP Tool Registry (Semantic KPIs, APIs, DataHub)',
+              'Input/Output Guardrails: Prompt Injection & PII Filtering',
+              'OPA Policy Enforcement + Mandatory HITL Escalation'
+            ]
+          },
+          {
+            title: 'Agent Runtime & Multi-Agent Orchestration',
+            badge: 'SUB-CAP 4-5',
+            bullets: [
+              'LangGraph Domain & Platform Agents on OpenShift Pods',
+              'Prompt Templates, Session State & Long-Term Memory',
+              'A2A Multi-Agent Coordination & Sandboxed Execution'
+            ]
+          }
+        ];
+
+        const cw2 = 374, gap2 = 13, ch2 = 112, cy2 = y + 146;
+        row2.forEach((c, i) => {
+          drawCard(root, {
+            x: x + 12 + i * (cw2 + gap2),
+            y: cy2,
+            w: cw2,
+            h: ch2,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#B45309',
+            border: '#FCD34D',
+            bg: '#FFFFFF',
+            badgeBg: '#FEF3C7',
+            badgeFg: '#92400E',
+            titleSize: 10.4,
+            bulletSize: 9.7,
+            bulletGap: 21,
+            bulletStartOffset: 52
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 8. CENTER STACK — LAYER 5: EXPERIENCE & CERTIFIED DATA PRODUCTS (#15803D)
+       * -------------------------------------------------------------------------- */
+      function buildLayer5() {
+        const root = document.getElementById('svg-layer-5');
+        const x = 374, y = 1072, w = 1172, h = 222;
+
+        drawLayerFrame(root, x, y, w, h, '5. EXPERIENCE, CERTIFIED DATA PRODUCTS & CONSUMPTION CHANNELS', '#15803D', '#F0FDF4', '#16A34A');
+
+        const cards = [
+          {
+            title: 'Semantic-Backed BI',
+            badge: 'DASHBOARDS',
+            bullets: ['Power BI · Apache Superset · Looker', 'Zero Metric Drift via Semantic Layer', 'Augmented Insights & Alerting']
+          },
+          {
+            title: 'AI Workbench & Sandbox',
+            badge: 'WORKBENCH',
+            bullets: ['JupyterHub / Lab · Marimo Notebooks', 'OpenShift Dev Spaces + GPU/MIG', 'PyTorch · TensorFlow · JAX · SQL ML']
+          },
+          {
+            title: 'Conversational & Digital UX',
+            badge: 'CHANNELS',
+            bullets: ['Arabic / English Conversational BI', 'SuperApp Copilots & Decision APIs', 'Embedded Predictive Analytics']
+          },
+          {
+            title: 'Governed Data Exchange',
+            badge: 'EXCHANGE',
+            bullets: ['Automated Data Product Marketplace', 'Open Data Portal & Partner APIs', 'Replaces Manual Ticket Exports']
+          }
+        ];
+
+        const cw = 278, gap = 12, ch = 98, cy = y + 36;
+        cards.forEach((c, i) => {
+          drawCard(root, {
+            x: x + 12 + i * (cw + gap),
+            y: cy,
+            w: cw,
+            h: ch,
+            title: c.title,
+            badge: c.badge,
+            bullets: c.bullets,
+            accent: '#15803D',
+            border: '#BBF7D0',
+            badgeBg: '#DCFCE7',
+            badgeFg: '#166534',
+            titleSize: 10.4,
+            bulletSize: 9.7,
+            bulletGap: 18,
+            bulletStartOffset: 48
+          });
+        });
+
+        // Bottom Strip inside Layer 5: 5 AI Archetypes & 3 Certified Data Product Types
+        const sy = y + 142, sh = 70, sw = w - 24;
+        root.appendChild(el('rect', {
+          x: x + 12, y: sy, width: sw, height: sh, rx: 7,
+          fill: '#DCFCE7',
+          stroke: '#15803D',
+          'stroke-width': 1.15
+        }));
+
+        addText(root, x + w / 2, sy + 16.5, '5 SUPPORTED ENTERPRISE AI ARCHETYPES & 3 CERTIFIED DATA PRODUCT TYPES (DATASETS · DASHBOARDS · AI MODELS)', {
+          size: 9.6,
+          weight: 800,
+          fill: '#14532D',
+          anchor: 'middle',
+          spacing: '0.35'
+        });
+
+        const archetypes = [
+          { name: 'Analytical AI', desc: 'Predict · Classify · Anomaly' },
+          { name: 'Generative AI', desc: 'RAG · Summarize · Copilot' },
+          { name: 'Perception AI', desc: 'OCR · NLP · Vision · Speech' },
+          { name: 'Autonomous AI', desc: 'Agents · Event Automation' },
+          { name: 'Decision AI', desc: 'Simulate · Rules · Optimize' }
+        ];
+
+        const aw = 216, agap = 12, ah = 38, ay = sy + 24;
+        const totalW = 5 * aw + 4 * agap; // 1128
+        const aStartX = x + (w - totalW) / 2;
+
+        archetypes.forEach((a, i) => {
+          const ax = aStartX + i * (aw + agap);
+          root.appendChild(el('rect', {
+            x: ax, y: ay, width: aw, height: ah, rx: 6,
+            fill: '#FFFFFF',
+            stroke: '#86EFAC',
+            'stroke-width': 1
+          }));
+          addText(root, ax + aw / 2, ay + 15.5, a.name, {
+            size: 10.4,
+            weight: 800,
+            fill: '#15803D',
+            anchor: 'middle'
+          });
+          addText(root, ax + aw / 2, ay + 30, a.desc, {
+            size: 9.4,
+            weight: 500,
+            fill: '#334155',
+            anchor: 'middle'
+          });
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 9. BOTTOM FOUNDATION BAR — HYBRID DEPLOYMENT SUBSTRATE (#0F172A)
+       * -------------------------------------------------------------------------- */
+      function buildFoundation() {
+        const root = document.getElementById('svg-foundation');
+        const x = 18, y = 1308, w = 1884, h = 108;
+
+        // Outer Dark Slate Panel
+        root.appendChild(el('rect', {
+          x, y, width: w, height: h, rx: 10,
+          fill: '#0F172A',
+          stroke: '#334155',
+          'stroke-width': 1.5
+        }));
+
+        addText(root, x + w / 2, y + 20, 'HYBRID DEPLOYMENT SUBSTRATE & PORTABILITY MATRIX (IDENTICAL ODCS CONTRACTS · ASYNCAPI EVENTS · ICEBERG REST · MCP INTERFACES)', {
+          size: 10.6,
+          weight: 800,
+          fill: '#F1F5F9',
+          anchor: 'middle',
+          spacing: '0.5'
+        });
+
+        // Left Box: Sovereign On-Premises Plane
+        const lx = 32, by = y + 30, bw = 886, bh = 68;
+        root.appendChild(el('rect', {
+          x: lx, y: by, width: bw, height: bh, rx: 7,
+          fill: '#1E293B',
+          stroke: '#38BDF8',
+          'stroke-width': 1.5
+        }));
+        addText(root, lx + 14, by + 19, 'SOVEREIGN ON-PREMISES PLANE (RED HAT OPENSHIFT / KUBERNETES · GITOPS ARGOCD · KEDA)', {
+          size: 10.6,
+          weight: 800,
+          fill: '#38BDF8',
+          spacing: '0.3'
+        });
+        addText(root, lx + 14, by + 39, 'Apigee Hybrid · Confluent CFK · Debezium · IDMC/NiFi · Apache Ozone/Ceph · Iceberg + Polaris + Gravitino', {
+          size: 10.2,
+          weight: 500,
+          fill: '#E2E8F0'
+        });
+        addText(root, lx + 14, by + 56, 'Spark / Flink / Trino / StarRocks · Cube · Feast · MLflow · KServe/vLLM · DataHub · Ranger · OPA · Langfuse', {
+          size: 10.2,
+          weight: 500,
+          fill: '#CBD5E1'
+        });
+
+        // Center Bidirectional Portability Arrows
+        const midX = 960;
+        root.appendChild(el('line', {
+          x1: 928, y1: by + 27, x2: 992, y2: by + 27,
+          stroke: '#34D399',
+          'stroke-width': 2.2,
+          'marker-end': 'url(#arrow-port-r)'
+        }));
+        root.appendChild(el('line', {
+          x1: 992, y1: by + 41, x2: 928, y2: by + 41,
+          stroke: '#38BDF8',
+          'stroke-width': 2.2,
+          'marker-end': 'url(#arrow-port-l)'
+        }));
+        addText(root, midX, by + 59, 'PORTABLE', {
+          size: 8.4,
+          weight: 700,
+          fill: '#94A3B8',
+          anchor: 'middle',
+          spacing: '0.6'
+        });
+
+        // Right Box: Managed Cloud-Native Mapping
+        const rx = 1002;
+        root.appendChild(el('rect', {
+          x: rx, y: by, width: bw, height: bh, rx: 7,
+          fill: '#1E293B',
+          stroke: '#10B981',
+          'stroke-width': 1.5
+        }));
+        addText(root, rx + 14, by + 19, 'MANAGED CLOUD-NATIVE MAPPING (GOOGLE CLOUD REFERENCE BLUEPRINT — ELASTIC & FRONTIER AI)', {
+          size: 10.6,
+          weight: 800,
+          fill: '#34D399',
+          spacing: '0.3'
+        });
+        addText(root, rx + 14, by + 39, 'Apigee Platform · Pub/Sub + Eventarc · Datastream CDC · Dataflow + Dataform · GCS + BigQuery / BigLake', {
+          size: 10.2,
+          weight: 500,
+          fill: '#E2E8F0'
+        });
+        addText(root, rx + 14, by + 56, 'Cloud SQL / Bigtable · Dataplex + DLP · Looker · Vertex AI (Workbench / Features / Agents) · Composer', {
+          size: 10.2,
+          weight: 500,
+          fill: '#CBD5E1'
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+       * 10. CONNECTING ARROWS (Primary Vertical, Governance Left, Self-X Right)
+       * -------------------------------------------------------------------------- */
+      function buildConnectors() {
+        const flowRoot = document.getElementById('svg-connectors-flow');
+        const govRoot = document.getElementById('svg-connectors-gov');
+        const selfxRoot = document.getElementById('svg-connectors-selfx');
+
+        // A. Primary Top-to-Bottom Labeled Inter-Layer Flows
+        const gaps = [
+          { y1: 220, y2: 242, label: 'CDC · Event Streams · REST/SaaS APIs · Partner SFTP & Multimodal Files' },
+          { y1: 372, y2: 394, label: 'Iceberg WAP Writes · Multimodal Object Drops · Vector & Graph Indexing' },
+          { y1: 604, y2: 626, label: 'Polaris Vended Iceberg Reads · Stateful Flink Streams · Federated SQL' },
+          { y1: 756, y2: 778, label: 'Certified Features · Semantic KPIs · Gold Data Products · Temporal Flows' },
+          { y1: 1048, y2: 1070, label: 'Governed MCP Tools · Certified Data Products · Conversational & BI APIs' }
+        ];
+
+        // Flanking arrow X-positions leave the central label 100% clear of vertical lines
+        const arrowXs = [468, 608, 1312, 1452];
+
+        gaps.forEach((g) => {
+          arrowXs.forEach((ax) => {
+            flowRoot.appendChild(el('line', {
+              x1: ax, y1: g.y1, x2: ax, y2: g.y2 - 2,
+              stroke: '#0284C7',
+              'stroke-width': 2,
+              'marker-end': 'url(#arrow-primary)'
+            }));
+          });
+
+          // Centered Flow Label Pill
+          const midY = (g.y1 + g.y2) / 2;
+          const pw = Math.round(g.label.length * 5.6 + 26);
+          flowRoot.appendChild(el('rect', {
+            x: 960 - pw / 2,
+            y: midY - 9,
+            width: pw,
+            height: 18,
+            rx: 9,
+            fill: '#E0F2FE',
+            stroke: '#7DD3FC',
+            'stroke-width': 1
+          }));
+          addText(flowRoot, 960, midY + 3.4, g.label, {
+            size: 9.4,
+            weight: 700,
+            fill: '#0369A1',
+            anchor: 'middle'
+          });
+        });
+
+        // B. Horizontal Dashed Teal Arrows: Left Pillar -> Center Layers (1..5)
+        // C. Horizontal Bidirectional Dashed Purple Arrows: Center Layers (1..5) <-> Right Pillar
+        const horizontalYs = [308, 500, 692, 914, 1183];
+
+        horizontalYs.forEach((hy) => {
+          // Left Pillar (336) -> Center Stack (372)
+          govRoot.appendChild(el('line', {
+            x1: 336, y1: hy, x2: 370, y2: hy,
+            stroke: '#0F766E',
+            'stroke-width': 2,
+            'stroke-dasharray': '4.5,3',
+            'marker-end': 'url(#arrow-gov)'
+          }));
+
+          // Center Stack (1548) <-> Right Pillar (1582)
+          selfxRoot.appendChild(el('line', {
+            x1: 1550, y1: hy, x2: 1580, y2: hy,
+            stroke: '#6D28D9',
+            'stroke-width': 2,
+            'stroke-dasharray': '4.5,3',
+            'marker-start': 'url(#arrow-selfx-rev)',
+            'marker-end': 'url(#arrow-selfx)'
+          }));
+        });
+      }
+
+      /* Build complete vector blueprint on initialization */
+      buildLeftPillar();
+      buildRightPillar();
+      buildLayer0();
+      buildLayer1();
+      buildLayer2();
+      buildLayer3();
+      buildLayer4();
+      buildLayer5();
+      buildFoundation();
+      buildConnectors();
+
+      /* ==========================================================================
+       * INTERACTIVE STUDIO: PAN, ZOOM, LAYER HIGHLIGHTING & EXPORTS
+       * ========================================================================== */
+      const viewport = document.getElementById('viewport');
+      const stage = document.getElementById('stage');
+      const svgEl = document.getElementById('architecture-svg');
+      const zoomReadout = document.getElementById('zoom-readout');
+
+      const SVG_W = 1920;
+      const SVG_H = 1430;
+
+      const state = {
+        scale: 1,
+        tx: 0,
+        ty: 0,
+        minScale: 0.2,
+        maxScale: 3.0,
+        dragging: false,
+        startX: 0,
+        startY: 0,
+        origTx: 0,
+        origTy: 0,
+        activeFilter: 'all'
+      };
+
+      function applyTransform() {
+        stage.style.transform = `translate3d(${state.tx}px, ${state.ty}px, 0) scale(${state.scale})`;
+        zoomReadout.textContent = `${Math.round(state.scale * 100)}%`;
+      }
+
+      function fitToScreen() {
+        const rect = viewport.getBoundingClientRect();
+        const pad = 28;
+        const scaleX = (rect.width - pad * 2) / SVG_W;
+        const scaleY = (rect.height - pad * 2) / SVG_H;
+        state.scale = Math.max(state.minScale, Math.min(1.15, Math.min(scaleX, scaleY)));
+        state.tx = (rect.width - SVG_W * state.scale) / 2;
+        state.ty = (rect.height - SVG_H * state.scale) / 2;
+        applyTransform();
+      }
+
+      function resetZoom100() {
+        const rect = viewport.getBoundingClientRect();
+        state.scale = 1;
+        state.tx = Math.max(16, (rect.width - SVG_W) / 2);
+        state.ty = 16;
+        applyTransform();
+      }
+
+      function zoomAtPoint(factor, clientX, clientY) {
+        const rect = viewport.getBoundingClientRect();
+        const mouseX = clientX - rect.left;
+        const mouseY = clientY - rect.top;
+
+        const nextScale = Math.max(state.minScale, Math.min(state.maxScale, state.scale * factor));
+        const ratio = nextScale / state.scale;
+
+        state.tx = mouseX - (mouseX - state.tx) * ratio;
+        state.ty = mouseY - (mouseY - state.ty) * ratio;
+        state.scale = nextScale;
+        applyTransform();
+      }
+
+      function zoomCentered(factor) {
+        const rect = viewport.getBoundingClientRect();
+        zoomAtPoint(factor, rect.left + rect.width / 2, rect.top + rect.height / 2);
+      }
+
+      /* Mouse Wheel Zoom */
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+        zoomAtPoint(factor, e.clientX, e.clientY);
+      }, { passive: false });
+
+      /* Click-and-Drag Pan */
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        state.dragging = true;
+        state.startX = e.clientX;
+        state.startY = e.clientY;
+        state.origTx = state.tx;
+        state.origTy = state.ty;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!state.dragging) return;
+        state.tx = state.origTx + (e.clientX - state.startX);
+        state.ty = state.origTy + (e.clientY - state.startY);
+        applyTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        state.dragging = false;
+      });
+
+      /* Touch Pan & Pinch Zoom Support */
+      let lastTouchDist = null;
+      viewport.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          state.dragging = true;
+          state.startX = e.touches[0].clientX;
+          state.startY = e.touches[0].clientY;
+          state.origTx = state.tx;
+          state.origTy = state.ty;
+        } else if (e.touches.length === 2) {
+          state.dragging = false;
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          lastTouchDist = Math.hypot(dx, dy);
+        }
+      }, { passive: true });
+
+      viewport.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && state.dragging) {
+          e.preventDefault();
+          state.tx = state.origTx + (e.touches[0].clientX - state.startX);
+          state.ty = state.origTy + (e.touches[0].clientY - state.startY);
+          applyTransform();
+        } else if (e.touches.length === 2 && lastTouchDist) {
+          e.preventDefault();
+          const dx = e.touches[0].clientX - e.touches[1].clientX;
+          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dist = Math.hypot(dx, dy);
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          zoomAtPoint(dist / lastTouchDist, midX, midY);
+          lastTouchDist = dist;
+        }
+      }, { passive: false });
+
+      viewport.addEventListener('touchend', () => {
+        state.dragging = false;
+        lastTouchDist = null;
+      });
+
+      /* Toolbar Zoom Buttons */
+      document.getElementById('btn-zoom-in').addEventListener('click', () => zoomCentered(1.2));
+      document.getElementById('btn-zoom-out').addEventListener('click', () => zoomCentered(1 / 1.2));
+      document.getElementById('btn-fit').addEventListener('click', fitToScreen);
+      document.getElementById('btn-reset').addEventListener('click', resetZoom100);
+
+      /* Keyboard Shortcuts (+, -, 0) */
+      window.addEventListener('keydown', (e) => {
+        if (e.key === '+' || e.key === '=') zoomCentered(1.18);
+        else if (e.key === '-') zoomCentered(1 / 1.18);
+        else if (e.key === '0') fitToScreen();
+      });
+
+      /* Layer Highlight Filter Logic */
+      const filterButtons = document.querySelectorAll('.filter-btn');
+      const layerGroups = svgEl.querySelectorAll('g[data-layer]');
+
+      function applyLayerFilter(filterName) {
+        state.activeFilter = filterName;
+
+        filterButtons.forEach((btn) => {
+          const isActive = btn.dataset.filter === filterName;
+          btn.className = isActive
+            ? 'filter-btn px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-400/60 transition shrink-0 cursor-pointer'
+            : 'filter-btn px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:border-slate-500 hover:text-white transition shrink-0 cursor-pointer';
+        });
+
+        layerGroups.forEach((g) => {
+          const layerKey = g.getAttribute('data-layer');
+          if (filterName === 'all') {
+            g.style.opacity = '1';
+          } else if (layerKey === filterName) {
+            g.style.opacity = '1';
+          } else {
+            g.style.opacity = '0.2';
+          }
+        });
+      }
+
+      filterButtons.forEach((btn) => {
+        btn.addEventListener('click', () => applyLayerFilter(btn.dataset.filter));
+      });
+
+      /* --------------------------------------------------------------------------
+       * Toast Notification Helper (Replaces alert())
+       * -------------------------------------------------------------------------- */
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        const palette = type === 'error'
+          ? 'bg-rose-950/95 border-rose-500/70 text-rose-100'
+          : 'bg-slate-900/95 border-emerald-500/70 text-emerald-100';
+        toast.className = `px-4 py-2 rounded-lg border text-xs font-semibold shadow-xl backdrop-blur transition-all duration-300 opacity-0 translate-y-2 ${palette}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => {
+          toast.classList.remove('opacity-0', 'translate-y-2');
+        });
+
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'translate-y-2');
+          setTimeout(() => toast.remove(), 300);
+        }, 2800);
+      }
+
+      /* --------------------------------------------------------------------------
+       * Standalone SVG XML Serializer (Always full opacity, XML header included)
+       * -------------------------------------------------------------------------- */
+      function getStandaloneSvgXml() {
+        const clone = svgEl.cloneNode(true);
+        clone.setAttribute('xmlns', SVG_NS);
+        clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+        clone.setAttribute('viewBox', `0 0 ${SVG_W} ${SVG_H}`);
+        clone.setAttribute('width', String(SVG_W));
+        clone.setAttribute('height', String(SVG_H));
+
+        // Reset any interactive UI opacity dimming so export is always 100% crisp
+        clone.querySelectorAll('g[data-layer]').forEach((g) => {
+          g.removeAttribute('style');
+        });
+
+        const serializer = new XMLSerializer();
+        const raw = serializer.serializeToString(clone);
+        return `<?xml version="1.0" encoding="UTF-8"?>\n${raw}`;
+      }
+
+      /* Export 1: Download .SVG */
+      document.getElementById('btn-export-svg').addEventListener('click', () => {
+        try {
+          const xml = getStandaloneSvgXml();
+          const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'aegislake-architecture.svg';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast('Downloaded standalone aegislake-architecture.svg');
+        } catch (err) {
+          console.error(err);
+          showToast('Failed to export SVG file.', 'error');
+        }
+      });
+
+      /* Export 2: High-Res 2x .PNG (3840x2860) */
+      document.getElementById('btn-export-png').addEventListener('click', () => {
+        try {
+          const xml = getStandaloneSvgXml();
+          const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const img = new Image();
+
+          img.onload = () => {
+            try {
+              const scale = 2; // 3840x2860 ultra-crisp executive export
+              const canvas = document.createElement('canvas');
+              canvas.width = SVG_W * scale;
+              canvas.height = SVG_H * scale;
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#F8FAFC';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.scale(scale, scale);
+              ctx.drawImage(img, 0, 0, SVG_W, SVG_H);
+
+              const pngUrl = canvas.toDataURL('image/png');
+              const a = document.createElement('a');
+              a.href = pngUrl;
+              a.download = 'aegislake-architecture.png';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              showToast('Exported 2x High-Res PNG (3840\u00d72860)');
+            } catch (canvasErr) {
+              console.error(canvasErr);
+              showToast('PNG rasterization failed in browser.', 'error');
+            } finally {
+              URL.revokeObjectURL(url);
+            }
+          };
+
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            showToast('Could not render SVG for PNG export.', 'error');
+          };
+
+          img.src = url;
+        } catch (err) {
+          console.error(err);
+          showToast('PNG export error.', 'error');
+        }
+      });
+
+      /* Export 3: Copy Standalone SVG Code (iframe-safe document.execCommand) */
+      document.getElementById('btn-copy-svg').addEventListener('click', () => {
+        try {
+          const xml = getStandaloneSvgXml();
+          const ta = document.createElement('textarea');
+          ta.value = xml;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.top = '-9999px';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+
+          if (ok) {
+            showToast('Standalone SVG XML copied to clipboard!');
+          } else {
+            showToast('Clipboard copy blocked — use Download .SVG instead.', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          showToast('Could not copy SVG code.', 'error');
+        }
+      });
+
+      /* Initial Fit-to-Screen on load & responsive resize */
+      window.addEventListener('load', fitToScreen);
+      window.addEventListener('resize', fitToScreen);
+      fitToScreen();
+    })();
+  </script>
+</body>
+</html>
