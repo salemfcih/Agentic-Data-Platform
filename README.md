@@ -7,17 +7,23 @@
 
 **AegisLake** is a vendor-neutral, enterprise-grade reference architecture for a **Self-Operating, Self-Healing, Self-Evolving, Self-Improving, Self-Governing, and Self-Scaling Agentic Data & AI Lakehouse**.
 
+> **Status: reference architecture.** The documents and ADRs describe a target design. The code under `agents/` and `platform/` is illustrative: it shows control logic and configuration shape, not a deployable platform. ADR-007 to ADR-010 are proposed and open for review.
+
 Designed for regulated national-scale enterprises (government, financial services, insurance, telecom), AegisLake unifies:
 - **Open Multimodal Lakehouse** (`Apache Ozone / Ceph RGW`, `Apache Iceberg v3`, `Apache Polaris`, `Apache Gravitino`, `LakeFS`, `Qdrant`)
 - **Event-First Integration & Operational Data Store** (`Confluent Kafka / Strimzi`, `Debezium CDC`, `Informatica IDMC / NiFi`, `dlt`, `Apigee Hybrid`, `ODS + MDM Golden Records`)
 - **Elastic Compute, Data Products & Semantic Serving** (`Apache Flink`, `Apache Spark + Ray`, `SQLMesh / dbt`, `Trino + StarRocks`, `Cube / dbt MetricFlow`, `Airflow 3.x + Temporal`)
-- **7-Layer GenAI, MLOps & Governed Agentic Runtime** (`Feast`, `MLflow 3.x`, `KServe + vLLM / Triton`, `LangGraph`, `Governed MCP & A2A Gateway`, `Evidently AI`, `Langfuse`)
+- **7-Capability GenAI, MLOps & Governed Agentic Runtime** (`Feast`, `MLflow 3.x`, `KServe + vLLM / Triton`, `LangGraph`, `Governed MCP & A2A Gateway`, `Evidently AI`, `Langfuse`)
 - **6 Autonomous "Self-X" Control Loops** backed by `OpenTelemetry`, `OpenLineage`, `DataHub`, `Apache Ranger`, `OPA`, and `KEDA` on Red Hat OpenShift / Kubernetes
 - **Dual Sovereign On-Premises & Cloud-Native Deployment Mapping** (balancing strict data sovereignty with frontier AI velocity)
 
 ---
 
 ## Target Reference Architecture
+
+![AegisLake reference architecture](docs/architecture/aegislake-architecture.svg)
+
+An interactive version with pan, zoom, layer highlighting and export is in [`aegislake_interactive_svg_architecture_studio_exporter.html`](aegislake_interactive_svg_architecture_studio_exporter.html). The same structure as a flow graph:
 
 ```mermaid
 flowchart TB
@@ -78,11 +84,12 @@ flowchart TB
         HEALA["Self-Heal (Data Reliability Agent: WAP Quarantine, Schema Fix, DLQ Replay)"]
         EVOLVA["Self-Evolve (Architecture Agent: AsyncAPI -> dbt/Semantic/MCP PRs)"]
         IMPA["Self-Improve (Eval Agent: Drift -> Retrain / Prompt Tune -> Canary)"]
+        SAFE["Autonomy Levels L0-L3, Action Budgets, Two-Key Publish, Kill Switch"]
     end
 
     subgraph GOV["7. ZERO-TRUST GOVERNANCE & RESPONSIBLE AI (NIST SP 800-207 / NCA ECC)"]
-        IDP["Identity Plane: OAuth2/OIDC (Ping / Keycloak) + SPIFFE/SPIRE"]
-        POL["Policy Plane: Apache Ranger (Data) + OPA (API/MCP/Agent) + Automated DLP"]
+        IDP["Identity Plane: OAuth2/OIDC (Ping / Keycloak) + SPIFFE/SPIRE + Token Exchange (Subject, Actor, Task)"]
+        POL["Policy Plane: One Policy Source + Enforcement Matrix: Apache Ranger (Data) + OPA (API/MCP/Agent) + Automated DLP"]
         CAT["DataHub (Active Metadata) + AsyncAPI Event Catalog-as-Code + Audit Ledger"]
     end
 
@@ -119,6 +126,10 @@ flowchart TB
     AIOBS --> IMPA --> MLFLOW
     GOV -. "Credential Vending & Masking" .-> L2
     GOV -. "Scoped Agent AuthZ & Guardrails" .-> MCP
+    SAFE -. "Ceilings & Kill Switch" .-> OPSA
+    SAFE -. "Ceilings & Kill Switch" .-> HEALA
+    SAFE -. "Ceilings & Kill Switch" .-> EVOLVA
+    SAFE -. "Ceilings & Kill Switch" .-> IMPA
 ```
 
 ---
@@ -129,11 +140,13 @@ flowchart TB
 | Capability | Trigger Signals | Autonomous Action | Human-in-the-Loop (HITL) Gate |
 | :--- | :--- | :--- | :--- |
 | **Self-Operate** | Iceberg small-file ratio, query latency, storage heat | Automated Iceberg compaction, Z-order/liquid clustering, snapshot expiration, cold tiering | Cost-ceiling policy via OPA |
-| **Self-Heal** | Soda v4 contract failure, schema drift, Evidently anomaly | Isolates data on Iceberg **WAP branch**, quarantines bad records, proposes schema cast, replays Kafka DLQ via Temporal | Auto-heal for additive/quarantine rules; PR approval for breaking schema changes |
-| **Self-Evolve** | New AsyncAPI spec or Schema Registry version | Scaffolds Bronze/Silver SQLMesh/dbt models, ODCS data contracts, semantic KPIs, and MCP tool stubs | Architecture & Domain Steward PR review |
+| **Self-Heal** | Soda v4 contract failure, schema drift, Evidently anomaly | Isolates data on an Iceberg **WAP branch**, quarantines bad records on the branch, proposes a schema fix, requests publication from a separate publisher identity | Publish is automatic only when contract checks pass and a different identity publishes. Partial data and breaking schema changes go to a person |
+| **Self-Evolve** | New AsyncAPI spec or Schema Registry version | Scaffolds Bronze/Silver SQLMesh/dbt models, ODCS data contracts, semantic KPIs, and MCP tool stubs as pull requests | Architecture & Domain Steward PR review. Tools are never registered automatically |
 | **Self-Improve** | Langfuse faithfulness/latency drop or Evidently model drift | Triggers Feast feature refresh, MLflow retraining or RAG/prompt sweep, evaluates shadow KServe canary | Automated promotion only if statistical uplift & fairness gates pass |
-| **Self-Govern** | Access requests, PII discovery, agent tool invocation | Automated DLP tagging, Ranger row/column masking, Polaris short-lived credential vending, OPA MCP guardrails | Policy-as-code review via GitOps |
-| **Self-Scale** | Kafka consumer lag, Trino queue depth, GPU TTFT | KEDA autoscaling for Flink/workers, Spark dynamic allocation, KServe/vLLM GPU scale-to-zero & burst | Budget quota enforcement |
+| **Self-Govern** | Access requests, PII discovery, agent tool invocation | New columns masked by default, then DLP classification and tagging; stricter Ranger masking applied automatically; Polaris short-lived credential vending; OPA MCP guardrails | Loosening a policy needs a person. Policy-as-code review via GitOps; agents cannot change policy |
+| **Self-Scale** | Kafka consumer lag, Trino queue depth, GPU TTFT | Flink operator autoscaler for stream jobs, KEDA for Kafka consumers and workers, Spark dynamic allocation, KServe/vLLM GPU scale-to-zero & burst | Budget quota enforcement |
+
+Every action above has a maximum autonomy level (L0 observe to L3 act within guardrails), every loop has an action budget, and one kill switch drops all loops to recommend-only. See [ADR-009](docs/adr/ADR-009-autonomy-levels-and-self-x-safety.md).
 
 ### 2. Five Enterprise AI Use-Case Archetypes Supported
 1. **Analytical AI** — Prediction, classification, anomaly detection (`Spark`, `Feast`, `MLflow`, `Triton/ONNX`).
@@ -142,11 +155,15 @@ flowchart TB
 4. **Autonomous AI** — Multi-step agentic workflows and event-driven automation (`LangGraph`, `Temporal`, `MCP/A2A Gateway`).
 5. **Decision AI** — Recommendations, simulations, policy/rules and optimization engines (`Semantic Layer`, `StarRocks`, `Decision APIs`).
 
-### 3. Critical 2026 Lifecycle Decisions (Why This Differs From Legacy Diagrams)
-- **Replaced MinIO Community Edition -> Apache Ozone / Ceph RGW** ([ADR-001](docs/adr/ADR-001-object-storage-ozone-ceph-over-minio-ce.md)): MinIO CE was archived in 2026 with unpatched CVEs and removed anonymous container pulls.
-- **Replaced WhyLabs -> Langfuse + Evidently AI** ([ADR-004](docs/adr/ADR-004-ai-observability-langfuse-evidently-over-whylabs.md)): WhyLabs discontinued commercial operations in 2026; dual open-source observability covers both classical ML drift and LLM/agent traces.
+### 3. Key Architecture Decisions
+- **Replaced MinIO Community Edition -> Apache Ozone / Ceph RGW** ([ADR-001](docs/adr/ADR-001-object-storage-ozone-ceph-over-minio-ce.md)): MinIO stopped publishing community binaries and images in 2025, and the community repository was archived in 2026.
+- **Replaced WhyLabs -> Langfuse + Evidently AI** ([ADR-004](docs/adr/ADR-004-ai-observability-langfuse-evidently-over-whylabs.md)): WhyLabs discontinued commercial operations in early 2025 and open-sourced its platform; dual open-source observability covers both classical ML drift and LLM/agent traces.
 - **Replaced n8n for Analytical ELT -> dlt / Debezium Kafka Connect** ([ADR-006](docs/adr/ADR-006-event-backbone-kafka-cdc-dlt-over-n8n.md)): Workflow tools lack schema contracts, CDC checkpointing, and bulk throughput.
-- **Added Governed Semantic Layer + Federated Metalake (Gravitino + Polaris)** ([ADR-002](docs/adr/ADR-002-federated-metalake-gravitino-plus-polaris.md), [ADR-005](docs/adr/ADR-005-semantic-layer-and-governed-mcp-gateway.md)): Prevents KPI drift across BI tools and eliminates LLM SQL hallucinations.
+- **Added Governed Semantic Layer + Federated Metalake (Gravitino + Polaris)** ([ADR-002](docs/adr/ADR-002-federated-metalake-gravitino-plus-polaris.md), [ADR-005](docs/adr/ADR-005-semantic-layer-and-governed-mcp-gateway.md)): Keeps one KPI definition across BI tools and gives agents certified metrics to query instead of generating SQL against raw tables.
+- **Proposed: Agent Identity and Delegated Authority** ([ADR-007](docs/adr/ADR-007-agent-identity-and-delegated-authority.md)): Every tool call carries the subject it is for, the agent acting and the task, through token exchange. Tokens are never passed through.
+- **Proposed: One Policy Source and an Enforcement Matrix** ([ADR-008](docs/adr/ADR-008-authorization-enforcement-matrix.md)): States which access path enforces row and column policy, and keeps sensitive data off paths that cannot.
+- **Proposed: Autonomy Levels and Self-X Safety** ([ADR-009](docs/adr/ADR-009-autonomy-levels-and-self-x-safety.md)): Ceilings per action, proposer is not approver, budgets, rollback and a kill switch.
+- **Proposed: Resilience, Tenancy and Data Lifecycle** ([ADR-010](docs/adr/ADR-010-resilience-tenancy-and-data-lifecycle.md)): Recovery classes and order, isolation per domain, and erasure that reaches every derived copy.
 
 ---
 
@@ -155,11 +172,15 @@ flowchart TB
 ```text
 Agentic-Data-Platform/
 ├── README.md
+├── CHANGELOG.md
 ├── LICENSE
 ├── CONTRIBUTING.md
+├── .env.example
 ├── docker-compose.local.yml
+├── aegislake_interactive_svg_architecture_studio_exporter.html
 ├── docs/
 │   ├── architecture/
+│   │   ├── aegislake-architecture.svg
 │   │   ├── 01-system-context-and-layers.md
 │   │   ├── 02-self-x-autonomous-control-plane.md
 │   │   ├── 03-zero-trust-responsible-ai-governance.md
@@ -171,7 +192,11 @@ Agentic-Data-Platform/
 │       ├── ADR-003-versioning-iceberg-wap-vs-lakefs.md
 │       ├── ADR-004-ai-observability-langfuse-evidently-over-whylabs.md
 │       ├── ADR-005-semantic-layer-and-governed-mcp-gateway.md
-│       └── ADR-006-event-backbone-kafka-cdc-dlt-over-n8n.md
+│       ├── ADR-006-event-backbone-kafka-cdc-dlt-over-n8n.md
+│       ├── ADR-007-agent-identity-and-delegated-authority.md      (Proposed)
+│       ├── ADR-008-authorization-enforcement-matrix.md            (Proposed)
+│       ├── ADR-009-autonomy-levels-and-self-x-safety.md           (Proposed)
+│       └── ADR-010-resilience-tenancy-and-data-lifecycle.md       (Proposed)
 ├── contracts/
 │   ├── data-contracts/
 │   │   └── customer_claims_gold.odcs.yaml
@@ -179,9 +204,12 @@ Agentic-Data-Platform/
 │       └── claims-events.asyncapi.yaml
 ├── platform/
 │   ├── openshift-gitops/
-│   │   └── keda-flink-autoscaler.yaml
+│   │   ├── flink-claims-iceberg-sink.yaml
+│   │   └── keda-kafka-consumer-autoscaler.yaml
 │   ├── policies/opa/
-│   │   └── mcp_agent_guardrails.rego
+│   │   ├── mcp_agent_guardrails.rego
+│   │   ├── mcp_agent_guardrails_test.rego
+│   │   └── data.json
 │   └── observability/
 │       └── otel-collector-config.yaml
 └── agents/
@@ -196,17 +224,27 @@ Agentic-Data-Platform/
 ## Quickstart (Local Architecture Sandbox)
 
 ```bash
-# 1. Launch local Iceberg REST Catalog (Polaris), S3-compatible storage (SeaweedFS),
-#    Trino query engine, OPA Policy Engine, Valkey online store, and OpenTelemetry Collector
+# 1. Set local secrets, then start the sandbox: Polaris (Iceberg REST catalog),
+#    SeaweedFS (S3-compatible storage), Trino, OPA, Valkey and an OpenTelemetry Collector.
+#    The services start side by side. Trino is not yet configured against Polaris.
+cp .env.example .env        # then edit .env
 docker compose -f docker-compose.local.yml up -d
 
-# 2. Verify OPA MCP Agent Guardrail policy
-curl -s -X POST http://localhost:8181/v1/data/aegislake/mcp/allow \
+# 2. Ask OPA for a decision: an analyst agent reading an internal KPI
+curl -s -X POST http://localhost:8181/v1/data/aegislake/mcp/decision \
   -H "Content-Type: application/json" \
-  -d '{"input":{"agent_role":"data_analyst_agent","tool":"query_semantic_kpi","contains_pii":false,"mutation":false}}'
+  -d '{"input":{"subject":{"id":"user-1","clearance":"internal"},"actor":{"spiffe_id":"spiffe://example.internal/ns/agents/sa/bi-copilot","role":"data_analyst_agent"},"task":{"id":"task-001","autonomy_level":1},"tool":{"name":"query_semantic_kpi"},"resource":{"name":"gold.claims.claim_volume_by_region"},"request":{"estimated_tokens":1200}}}'
+# -> {"result":{"allow":true,"reasons":[],"require_hitl":false}}
 
-# 3. Run the Self-Healing WAP Reliability Agent simulation
+# 3. Run the tool gateway demo. It calls OPA for every tool call and denies
+#    everything if OPA cannot be reached.
+python3 agents/mcp-servers/lakehouse_mcp_server.py
+
+# 4. Run the self-healing agent simulation (reads the data contract if PyYAML is installed)
 python3 agents/self-healing/wap_reliability_agent.py
+
+# 5. Run the policy tests (needs the opa CLI)
+opa test platform/policies/opa -v
 ```
 
 ---

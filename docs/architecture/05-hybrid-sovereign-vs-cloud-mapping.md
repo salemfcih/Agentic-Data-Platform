@@ -2,6 +2,8 @@
 
 Regulated enterprises face a classic tension: **sovereign, classified data requires strict on-premises residency**, while **advanced GenAI and elastic analytics benefit from managed cloud velocity**. AegisLake resolves this via a **Hybrid Sovereign-First Architecture** where logical layers, ODCS data contracts, AsyncAPI events, and MCP interfaces remain identical across both deployment planes.
 
+> **What is portable:** the interfaces. Contracts, event specifications, the Iceberg REST protocol and MCP tool definitions carry across. **What is not:** the workloads. Stream jobs, SQL dialects, orchestration and agent runtimes differ between the two columns below and need re-platforming. The table maps capabilities. It does not list drop-in replacements. Which data classifications may leave the sovereign plane at all is decided by the routing rule in [ADR-010](../adr/ADR-010-resilience-tenancy-and-data-lifecycle.md).
+
 ---
 
 ## Side-by-Side Technology Mapping
@@ -33,9 +35,9 @@ AegisLake targets the **Transformational MLOps Maturity Stage** (fully automated
 | Stack Canvas Pillar | AegisLake Architectural Guarantee |
 | :--- | :--- |
 | **Value Proposition** | Every AI initiative links to one of the 5 AI Archetypes and passes Use-Case Risk Classification before compute provisioning. |
-| **Data Sources & Versioning** | Immutable Bronze ingestion + Iceberg Snapshot IDs (tabular) + LakeFS commit hashes (unstructured) ensure 100% dataset reproducibility. |
+| **Data Sources & Versioning** | Immutable Bronze ingestion + Iceberg Snapshot IDs (tabular) + LakeFS commit hashes (unstructured) make every training dataset reproducible by reference. |
 | **Data Analysis & Experiment Mgmt** | Isolated AI Workbench sandboxes logging parameters, metrics, prompts, and datasets automatically to `MLflow 3.x`. |
-| **Feature Store & Workflows** | Centralized `Feast` definitions computed consistently via Spark (offline) and Flink (online) to eliminate training-serving skew. |
+| **Feature Store & Workflows** | Centralized `Feast` definitions computed from one definition via Spark (offline) and Flink (online) to reduce training-serving skew. |
 | **CI/CT/CD Pipeline Orchestration** | GitOps triggers automated unit tests, bias/fairness checks, shadow canary deployment, and scheduled/drift-triggered retraining. |
 | **Model Registry & Serving** | Versioned OCI model artifacts promoted across Dev -> Staging -> Prod on `KServe` (`<50ms` real-time SLA + batch scoring). |
 | **Monitoring & Maintenance** | Continuous data drift (`Evidently`), GenAI faithfulness/cost (`Langfuse`), and automated Self-Improve retraining loops. |

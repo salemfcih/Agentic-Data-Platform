@@ -1,3 +1,9 @@
+# Telemetry pipeline. Two rules from ADR-010 are applied here:
+#   1. Personal data is masked at collection, before anything is exported.
+#   2. Prompt and completion text goes only to the LLM observability backend. The general
+#      trace store receives the spans without that content.
+# Not yet validated against a running collector. Check processor options against the
+# collector-contrib version you deploy.
 receivers:
   otlp:
     protocols:
@@ -7,9 +13,15 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+    spike_limit_mib: 100
+
   batch:
     timeout: 5s
     send_batch_size: 1024
+
   attributes/governance:
     actions:
       - key: platform.name
@@ -19,25 +31,52 @@ processors:
         value: sovereign-openshift
         action: upsert
 
+  # General trace store: remove prompt and completion payloads.
+  attributes/drop_llm_content:
+    actions:
+      - pattern: ^gen_ai\.(prompt|completion|input\.messages|output\.messages|system_instructions).*
+        action: delete
+
+  # Both trace pipelines: mask common personal-data patterns in attribute values.
+  redaction/pii:
+    allow_all_keys: true
+    blocked_values:
+      - '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'  # email addresses
+      - '\b\d{10,16}\b'                                    # long numeric identifiers
+    summary: info
+
+  # LLM observability backend: keep only GenAI spans.
+  filter/genai_only:
+    error_mode: ignore
+    traces:
+      span:
+        - attributes["gen_ai.operation.name"] == nil and attributes["gen_ai.system"] == nil and attributes["gen_ai.provider.name"] == nil
+
 exporters:
   otlphttp/grafana_lgtm:
     endpoint: http://grafana-lgtm:4318
   otlphttp/langfuse:
     endpoint: http://langfuse:3000/api/public/otel
+    headers:
+      Authorization: "Basic ${env:LANGFUSE_OTLP_BASIC_AUTH}"
   debug:
     verbosity: basic
 
 service:
   pipelines:
-    traces:
+    traces/platform:
       receivers: [otlp]
-      processors: [attributes/governance, batch]
-      exporters: [otlphttp/grafana_lgtm, otlphttp/langfuse]
+      processors: [memory_limiter, attributes/governance, attributes/drop_llm_content, redaction/pii, batch]
+      exporters: [otlphttp/grafana_lgtm]
+    traces/genai:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/genai_only, attributes/governance, redaction/pii, batch]
+      exporters: [otlphttp/langfuse]
     metrics:
       receivers: [otlp]
-      processors: [attributes/governance, batch]
+      processors: [memory_limiter, attributes/governance, batch]
       exporters: [otlphttp/grafana_lgtm]
     logs:
       receivers: [otlp]
-      processors: [attributes/governance, batch]
+      processors: [memory_limiter, attributes/governance, batch]
       exporters: [otlphttp/grafana_lgtm]

@@ -1,0 +1,37 @@
+# Stream job scaled by the Flink Kubernetes Operator's autoscaler (native mode).
+# Illustrative: the image, jar and storage paths are placeholders, and the autoscaler
+# option names should be checked against the operator version you run.
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: claims-cdc-iceberg-sink
+  namespace: aegislake-streaming
+  labels:
+    app.kubernetes.io/part-of: aegislake
+    aegislake.io/control-loop: self-scale
+spec:
+  image: registry.example.internal/aegislake/claims-cdc-iceberg-sink:1.0.0
+  flinkVersion: v1_20
+  serviceAccount: flink
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+    execution.checkpointing.interval: "60s"
+    state.checkpoints.dir: s3://aegislake-flink/checkpoints/claims-cdc-iceberg-sink
+    state.savepoints.dir: s3://aegislake-flink/savepoints/claims-cdc-iceberg-sink
+    pipeline.max-parallelism: "24"
+    job.autoscaler.enabled: "true"
+    job.autoscaler.stabilization.interval: "5m"
+    job.autoscaler.metrics.window: "10m"
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "4096m"
+      cpu: 2
+  job:
+    jarURI: local:///opt/flink/usrlib/claims-cdc-iceberg-sink.jar
+    parallelism: 2
+    upgradeMode: savepoint
+    state: running

@@ -1,0 +1,104 @@
+{
+  "aegislake": {
+    "controls": {
+      "kill_switch": false,
+      "max_tokens_per_call": 50000
+    },
+    "registry": {
+      "tools": {
+        "query_semantic_kpi": {
+          "effect": "read",
+          "touches_data": true,
+          "allowed_roles": ["data_analyst_agent", "platform_self_healing_agent"]
+        },
+        "search_knowledge_base": {
+          "effect": "read",
+          "touches_data": true,
+          "allowed_roles": ["data_analyst_agent"]
+        },
+        "lookup_lineage": {
+          "effect": "read",
+          "touches_data": false,
+          "allowed_roles": ["data_analyst_agent", "platform_self_healing_agent", "platform_publisher_agent"]
+        },
+        "inspect_wap_branch": {
+          "effect": "read",
+          "touches_data": true,
+          "allowed_roles": ["platform_self_healing_agent", "platform_publisher_agent"]
+        },
+        "quarantine_invalid_records": {
+          "effect": "write",
+          "risk": "low",
+          "reversible": true,
+          "max_autonomy_level": 3,
+          "requires_second_party": false,
+          "allowed_roles": ["platform_self_healing_agent"]
+        },
+        "trigger_table_compaction": {
+          "effect": "write",
+          "risk": "low",
+          "reversible": true,
+          "max_autonomy_level": 3,
+          "requires_second_party": false,
+          "allowed_roles": ["platform_self_operate_agent"]
+        },
+        "open_model_evolution_pr": {
+          "effect": "write",
+          "risk": "low",
+          "reversible": true,
+          "max_autonomy_level": 3,
+          "requires_second_party": false,
+          "allowed_roles": ["platform_self_evolve_agent"]
+        },
+        "promote_wap_branch": {
+          "effect": "write",
+          "risk": "low",
+          "reversible": true,
+          "max_autonomy_level": 3,
+          "requires_second_party": true,
+          "allowed_roles": ["platform_publisher_agent"]
+        },
+        "promote_breaking_schema": {
+          "effect": "write",
+          "risk": "high",
+          "reversible": false,
+          "max_autonomy_level": 2,
+          "requires_second_party": true,
+          "allowed_roles": ["platform_publisher_agent"]
+        },
+        "deploy_prod_model_override": {
+          "effect": "write",
+          "risk": "high",
+          "reversible": true,
+          "max_autonomy_level": 2,
+          "requires_second_party": true,
+          "allowed_roles": ["platform_self_improve_agent"]
+        },
+        "purge_audit_partition": {
+          "effect": "write",
+          "risk": "high",
+          "reversible": false,
+          "max_autonomy_level": 1,
+          "requires_second_party": true,
+          "allowed_roles": []
+        }
+      }
+    },
+    "catalog": {
+      "assets": {
+        "gold.claims.claim_risk_features_daily": {
+          "classification": "confidential",
+          "masking_enforced": true
+        },
+        "gold.claims.claim_volume_by_region": {
+          "classification": "internal",
+          "masking_enforced": false
+        },
+        "bronze.claims.raw_submissions": {
+          "classification": "restricted",
+          "masking_enforced": false
+        }
+      }
+    }
+  }
+}

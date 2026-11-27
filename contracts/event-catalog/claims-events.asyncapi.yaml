@@ -1,64 +1,122 @@
 asyncapi: 3.0.0
 info:
-  title: Enterprise Claims Domain Event Catalog
-  version: 1.0.0
+  title: Claims Domain Event Catalog
+  version: 2.0.0
   description: >
-    Catalog-as-Code specification governing real-time claim lifecycle events.
-    Merging updates to this spec triggers the AegisLake Self-Evolving Agent to
-    propose downstream Iceberg Silver/Gold models, ODCS contracts, and MCP tools.
+    Catalog-as-code for claim lifecycle events. A merged change to this file is the
+    trigger for proposing downstream models, data contracts and tools. Those proposals
+    are pull requests reviewed by people (ADR-009); nothing is registered automatically.
   tags:
     - name: domain:claims
-    - name: tier:tier-1-critical
-    - name: security:mtls-oauthbearer
+    - name: tier:critical
+    - name: classification:confidential
+
+defaultContentType: avro/binary
 
 servers:
   production:
-    host: kafka-prod.mesh.internal:9093
+    host: kafka.example.internal:9093
     protocol: kafka-secure
-    description: Sovereign Confluent Kafka cluster on Red Hat OpenShift
+    description: Event backbone, production.
     security:
       - $ref: '#/components/securitySchemes/oauthBearer'
 
 channels:
   claimSubmitted:
     address: ent.claims.submitted.v1
+    description: One event per validated claim submission. Keyed by claim id so events for a claim stay ordered.
     messages:
-      ClaimSubmittedEvent:
-        $ref: '#/components/messages/ClaimSubmittedEvent'
+      claimSubmitted:
+        $ref: '#/components/messages/ClaimSubmitted'
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        partitions: 12
+        replicas: 3
+        topicConfiguration:
+          cleanup.policy:
+            - delete
+          retention.ms: 604800000
 
 operations:
   publishClaimSubmitted:
     action: send
     channel:
       $ref: '#/channels/claimSubmitted'
-    summary: Core claims engine publishes newly validated claim submissions
-  consumeForLakehouseAndFraud:
+    summary: The claims service publishes each validated claim submission.
+    messages:
+      - $ref: '#/channels/claimSubmitted/messages/claimSubmitted'
+  receiveClaimSubmitted:
     action: receive
     channel:
       $ref: '#/channels/claimSubmitted'
-    summary: Apache Flink ingests into Iceberg Bronze/Silver and updates Feast online features
+    summary: Stream processing consumes submissions for the lakehouse and for online features. Consumers must tolerate duplicates.
+    messages:
+      - $ref: '#/channels/claimSubmitted/messages/claimSubmitted'
 
 components:
   securitySchemes:
     oauthBearer:
       type: oauth2
+      description: Client credentials issued by the identity provider. Scopes are per domain.
       flows:
         clientCredentials:
-          tokenUrl: https://idp.mesh.internal/oauth2/token
+          tokenUrl: https://idp.example.internal/oauth2/token
           availableScopes:
             claims.produce: Produce to claims domain topics
             claims.consume: Consume from claims domain topics
+
   messages:
-    ClaimSubmittedEvent:
-      name: ClaimSubmittedEvent
-      contentType: application/avro
-      payload:
+    ClaimSubmitted:
+      name: ClaimSubmitted
+      title: Claim submitted
+      summary: A claim passed validation and was accepted for processing.
+      contentType: avro/binary
+      headers:
         type: object
-        required: [eventId, claimId, beneficiaryToken, claimAmount, currency, submittedAt]
         properties:
-          eventId: { type: string, format: uuid }
-          claimId: { type: string }
-          beneficiaryToken: { type: string, description: "DLP-tokenized identifier" }
-          claimAmount: { type: number, minimum: 0 }
-          currency: { type: string, enum: [SAR, USD, AED] }
-          submittedAt: { type: string, format: date-time }
+          traceparent:
+            type: string
+            description: W3C trace context, for end-to-end tracing and lineage.
+      payload:
+        schemaFormat: application/vnd.apache.avro;version=1.9.0
+        schema:
+          type: record
+          name: ClaimSubmitted
+          namespace: ent.claims.v1
+          doc: A validated claim submission.
+          fields:
+            - name: eventId
+              doc: Unique id of this event. Use it to de-duplicate.
+              type:
+                type: string
+                logicalType: uuid
+            - name: claimId
+              doc: Claim identifier. Also the message key.
+              type: string
+            - name: beneficiaryToken
+              doc: Tokenized beneficiary identifier. The clear value is never published. Classification confidential.
+              type: string
+            - name: claimAmount
+              doc: Claimed amount in the currency given by currencyCode. Classification confidential.
+              type:
+                type: bytes
+                logicalType: decimal
+                precision: 18
+                scale: 2
+            - name: currencyCode
+              doc: ISO 4217 currency code.
+              type: string
+            - name: submittedAt
+              doc: Submission time in UTC.
+              type:
+                type: long
+                logicalType: timestamp-millis
+      bindings:
+        kafka:
+          bindingVersion: 0.5.0
+          key:
+            type: string
+            description: claimId
+          schemaIdLocation: payload
+          schemaIdPayloadEncoding: confluent

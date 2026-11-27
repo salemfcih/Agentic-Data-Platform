@@ -1,5 +1,10 @@
+# Local sandbox only. Not a production topology.
+# - Secrets come from .env (copy .env.example). Nothing here has a default credential.
+# - Images use the `latest` tag for convenience. Pin exact versions before relying on this.
+# - The services run side by side. Trino is not yet configured against Polaris, and the
+#   OpenTelemetry Collector exports to hosts that exist only in a full deployment.
 services:
-  # Sovereign S3-compatible local storage (replaces archived MinIO CE)
+  # S3-compatible local storage (MinIO community edition is no longer maintained)
   seaweedfs:
     image: chrislusf/seaweedfs:latest
     command: "server -s3 -s3.port=8333"
@@ -7,27 +12,28 @@ services:
       - "8333:8333"
       - "9333:9333"
 
-  # Apache Polaris — Open Iceberg REST Catalog with Credential Vending
+  # Apache Polaris: Iceberg REST catalog with credential vending
   polaris:
     image: apache/polaris:latest
     ports:
       - "8182:8181"
     environment:
-      POLARIS_BOOTSTRAP_CREDENTIALS: "default-realm,root,s3cr3t"
+      POLARIS_BOOTSTRAP_CREDENTIALS: "default-realm,root,${POLARIS_ROOT_SECRET:?Set POLARIS_ROOT_SECRET in .env (see .env.example)}"
 
-  # Trino — Federated Analytical SQL Engine
+  # Trino: federated analytical SQL engine
   trino:
     image: trinodb/trino:latest
     ports:
       - "8080:8080"
 
-  # Valkey — High-Performance Online Feature Store & Agent Memory Cache
+  # Valkey: online feature store and agent memory cache
   valkey:
     image: valkey/valkey:8-alpine
     ports:
       - "6379:6379"
 
-  # Open Policy Agent (OPA) — Zero-Trust MCP & Agent Guardrail Engine
+  # Open Policy Agent: decides every agent tool call.
+  # Loads the policy, its tests and data.json (tool registry, catalog classifications, controls).
   opa:
     image: openpolicyagent/opa:latest
     command:
@@ -40,10 +46,12 @@ services:
     ports:
       - "8181:8181"
 
-  # OpenTelemetry Collector — Unified Telemetry Backbone
+  # OpenTelemetry Collector: telemetry pipeline with redaction
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     command: ["--config=/etc/otel-collector-config.yaml"]
+    environment:
+      LANGFUSE_OTLP_BASIC_AUTH: "${LANGFUSE_OTLP_BASIC_AUTH:-}"
     volumes:
       - ./platform/observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     ports:

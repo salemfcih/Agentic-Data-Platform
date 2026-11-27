@@ -1,69 +1,200 @@
-apiVersion: v3.0.2
+apiVersion: v3.1.0
 kind: DataContract
-id: dp-claims-risk-gold-v1
-version: 1.2.0
-status: active
-name: Certified Claims Risk & Eligibility Gold Data Product
+id: dp-claims-risk-gold
+name: Certified Claims Risk and Eligibility Gold Data Product
+version: 2.0.0
+status: draft
 domain: benefits-and-claims
 tenant: enterprise-core
+dataProduct: claims-risk
+tags:
+  - gold
+  - claims
 
-ownership:
-  businessOwner: head-of-claims-analytics@enterprise.example
-  technicalSteward: data-platform-engineering@enterprise.example
-  governanceBoard: enterprise-data-architecture-board
+description:
+  purpose: Daily risk and eligibility features per claim, for analytics, reporting and fraud scoring.
+  usage: Read through the semantic layer or a trusted query engine. Direct file access is not offered for this classification (see ADR-008).
+  limitations: Contains tokenized beneficiary identifiers. Not a source for re-identification.
 
-sla:
-  freshnessMinutes: 15
-  availabilityPercent: 99.95
-  retentionDays: 2555
-  wapBranchingRequired: true
-  selfHealingPolicy: quarantine_and_notify
+servers:
+  - server: lakehouse-prod
+    type: trino
+    environment: prod
+    description: Iceberg tables served through the trusted query engine.
+    host: trino.example.internal
+    port: 443
+    catalog: lakehouse
+    schema: gold_claims
 
-storage:
-  catalog: apache-polaris
-  metalake: apache-gravitino
-  format: apache-iceberg-v3
-  namespace: gold.claims
-  table: claim_risk_features_daily
+team:
+  name: claims-analytics
+  description: Owners of the claims risk data product.
+  members:
+    - username: head-of-claims-analytics@enterprise.example
+      role: Business Data Owner
+    - username: data-platform-engineering@enterprise.example
+      role: Technical Data Steward
+
+roles:
+  - role: claims_analyst
+    access: read
+    description: Analysts reading masked data through the semantic layer.
+    firstLevelApprovers: Business Data Owner
+  - role: fraud_scoring_service
+    access: read
+    description: Model serving workload reading features.
+    firstLevelApprovers: Technical Data Steward
+
+slaProperties:
+  - property: latency
+    value: 15
+    unit: minutes
+    element: claim_risk_features_daily.event_timestamp_utc
+    description: Maximum delay between the source event and availability in this table.
+  - property: retention
+    value: 7
+    unit: y
+    element: claim_risk_features_daily.event_timestamp_utc
+    description: Rows older than this are deleted. Erasure requests follow ADR-010 and can remove rows earlier.
+  - property: frequency
+    value: 15
+    unit: minutes
+    description: Publication cadence to the main branch.
 
 schema:
-  - name: claim_id
-    type: string
-    primaryKey: true
-    nullable: false
-    classification: internal
-  - name: beneficiary_token
-    type: string
-    nullable: false
-    classification: pii-tokenized
-    maskingPolicy: ranger_pii_hash_mask
-  - name: claim_amount_sar
-    type: decimal(18,2)
-    nullable: false
-    classification: confidential
-    qualityRules:
-      - type: range
-        min: 0.01
-        max: 10000000.00
-  - name: fraud_risk_score
-    type: double
-    nullable: false
-    qualityRules:
-      - type: range
-        min: 0.0
-        max: 1.0
-  - name: event_timestamp_utc
-    type: timestamp
-    nullable: false
+  - name: claim_risk_features_daily
+    physicalName: claim_risk_features_daily
+    physicalType: table
+    logicalType: object
+    description: One row per claim per day with risk and eligibility features.
+    dataGranularityDescription: One row per claim_id per feature_date.
+    properties:
+      - name: claim_id
+        logicalType: string
+        physicalType: string
+        description: Unique claim identifier.
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        classification: internal
+        quality:
+          - name: claim_id_not_missing
+            type: library
+            metric: missingValues
+            mustBe: 0
+            dimension: completeness
+            severity: error
+      - name: feature_date
+        logicalType: date
+        physicalType: date
+        description: Calendar day the features describe.
+        primaryKey: true
+        primaryKeyPosition: 2
+        required: true
+        classification: internal
+      - name: beneficiary_token
+        logicalType: string
+        physicalType: string
+        description: Tokenized beneficiary identifier. The clear value never enters this table.
+        required: true
+        classification: confidential
+        criticalDataElement: true
+        customProperties:
+          - property: maskingPolicy
+            value: hash_mask
+      - name: claim_amount
+        logicalType: number
+        physicalType: decimal(18,2)
+        description: Claimed amount in the currency given by currency_code.
+        required: true
+        classification: confidential
+        logicalTypeOptions:
+          minimum: 0.01
+          maximum: 10000000
+      - name: currency_code
+        logicalType: string
+        physicalType: string
+        description: ISO 4217 currency code of claim_amount.
+        required: true
+        classification: internal
+        logicalTypeOptions:
+          minLength: 3
+          maxLength: 3
+      - name: fraud_risk_score
+        logicalType: number
+        physicalType: double
+        description: Model score between 0 and 1. Higher means higher risk.
+        required: true
+        classification: confidential
+        logicalTypeOptions:
+          minimum: 0
+          maximum: 1
+      - name: event_timestamp_utc
+        logicalType: timestamp
+        physicalType: timestamp
+        description: Time of the source event, in UTC.
+        required: true
+        classification: internal
+    quality:
+      - name: table_not_empty
+        type: library
+        metric: rowCount
+        mustBeGreaterThan: 0
+        dimension: completeness
+        severity: error
+      - name: claim_per_day_unique
+        type: library
+        metric: duplicateValues
+        arguments:
+          properties:
+            - claim_id
+            - feature_date
+        mustBe: 0
+        dimension: uniqueness
+        severity: error
+      - name: reconciles_with_source
+        description: Every conformed claim for the load date is present. Guards against publishing partial data.
+        type: sql
+        query: |
+          SELECT COUNT(*)
+          FROM silver_claims.conformed_claims s
+          LEFT JOIN gold_claims.claim_risk_features_daily g
+            ON g.claim_id = s.claim_id
+           AND g.feature_date = s.load_date
+          WHERE s.load_date = CURRENT_DATE
+            AND g.claim_id IS NULL
+        mustBe: 0
+        dimension: completeness
+        severity: error
+      - name: claim_amount_distribution_stable
+        description: Average claim amount stays within the expected band for the day.
+        type: custom
+        engine: soda
+        implementation: |
+          checks for claim_risk_features_daily:
+            - anomaly detection for avg(claim_amount)
+        dimension: accuracy
+        severity: warning
 
-qualityGates:
-  engine: soda-v4
-  checks:
-    - row_count > 0
-    - missing_count(claim_id) = 0
-    - duplicate_count(claim_id) = 0
-    - anomaly_score(avg(claim_amount_sar)) < 3.0
-  onFailure:
-    promoteToMain: false
-    emitOpenLineageEvent: true
-    triggerAgent: wap_reliability_agent
+support:
+  - channel: data-platform-support
+    url: https://support.enterprise.example/data-platform
+    description: Incidents and access requests for this data product.
+
+customProperties:
+  - property: classification
+    value: confidential
+    description: Highest classification of any column. Drives the access paths allowed by ADR-008.
+  - property: writeAuditPublishRequired
+    value: true
+    description: Changes land on an audit branch and are published only after all error-severity checks pass.
+  - property: completenessRequired
+    value: true
+    description: Partial publication is not allowed. Rows may be quarantined on the audit branch, but main is only updated when reconciles_with_source passes (ADR-009, invariant 11).
+  - property: maxAutonomyLevelForPublish
+    value: 3
+    description: Publication may be automatic only by an identity different from the one that prepared the change.
+  - property: onQualityFailure
+    value: block_publish_and_notify
+  - property: availabilityTargetPercent
+    value: 99.95

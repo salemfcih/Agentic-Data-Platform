@@ -5,10 +5,11 @@ AegisLake converges two historically fragmented enterprise planes—**Real-Time 
 
 ## Architectural Principles
 1. **Data Products as the Default Unit of Delivery**: Every reusable Dataset, Dashboard/KPI bundle, and AI Model is published as a certified Data Product with a named owner, ODCS contract, quality SLA, lineage, and lifecycle policy.
-2. **Event-First, Replayable Ingestion**: All state changes flow through a durable, schema-governed commit log (`Kafka + Schema Registry`) before hitting stateful stream processors (`Flink`) or lakehouse tables (`Iceberg`).
-3. **Open Formats, Zero Lock-In**: Table storage (`Apache Iceberg v3`), catalog protocol (`Iceberg REST / Polaris`), federated metadata (`Apache Gravitino`), and observability (`OpenTelemetry + OpenLineage`) remain strictly open standards.
-4. **Semantic Grounding Before AI Generation**: Both BI dashboards and conversational AI agents query governed KPI definitions from the **Semantic Layer** (`Cube / dbt MetricFlow`), eliminating metric drift and SQL hallucination.
-5. **Zero-Trust Identity for Humans AND Agents**: Autonomous agents authenticate via cryptographic workload identities (`SPIFFE/SPIRE` + `OAuth2/OIDC`) and execute exclusively through a policy-enforced **MCP & A2A Gateway**.
+2. **Event-First, Replayable Ingestion**: By default, state changes flow through a durable, schema-governed commit log (`Kafka + Schema Registry`) before reaching stateful stream processors (`Flink`) or lakehouse tables (`Iceberg`). Batch API loads, managed file transfers and direct ODS feeds are explicit exceptions. Each exception is documented and has its own contract.
+3. **Open Formats to Limit Lock-In**: Table storage (`Apache Iceberg v3`), catalog protocol (`Iceberg REST / Polaris`), federated metadata (`Apache Gravitino`), and observability (`OpenTelemetry + OpenLineage`) remain strictly open standards.
+4. **Semantic Grounding Before AI Generation**: Both BI dashboards and conversational AI agents query governed KPI definitions from the **Semantic Layer** (`Cube / dbt MetricFlow`). Dashboards and agents share one definition per metric, and agents do not generate SQL against raw tables.
+5. **Zero-Trust Identity for Humans AND Agents**: Autonomous agents authenticate via cryptographic workload identities (`SPIFFE/SPIRE` + `OAuth2/OIDC`) and execute exclusively through a policy-enforced **MCP & A2A Gateway**. Every call carries the subject it is made for, the agent acting and the task ([ADR-007](../adr/ADR-007-agent-identity-and-delegated-authority.md)).
+6. **Bounded Autonomy**: Each autonomous action has a maximum autonomy level, a budget and a rollback, and all loops share one kill switch ([ADR-009](../adr/ADR-009-autonomy-levels-and-self-x-safety.md)).
 
 ---
 
@@ -23,7 +24,7 @@ AegisLake converges two historically fragmented enterprise planes—**Real-Time 
 ### Layer 1 — Unified Integration, Ingestion & Operational Data Store (ODS)
 - **API Gateway (`Apigee Hybrid / Kong`)**: External/internal API lifecycle, mTLS, OAuth2/OIDC, throttling, developer portal, and controlled exposure of APIs as MCP tools.
 - **Event Backbone (`Confluent Kafka / Strimzi + Schema Registry`)**: Immutable event log enforcing Avro/JSON Schema compatibility and AsyncAPI event catalogs.
-- **Zero-Code CDC (`Debezium / Kafka Connect`)**: Low-latency transactional replication from OLTP databases and partner SFTP/HTTP sources with zero custom code.
+- **Log-Based CDC (`Debezium / Kafka Connect`)**: Low-latency transactional replication from OLTP databases and partner SFTP/HTTP sources, set up through connector configuration instead of custom code.
 - **Modern ELT (`dlt / Airbyte`)**: Schema-evolving batch ingestion for REST APIs and SaaS platforms.
 - **B2B / MFT & Edge Routing (`Informatica IDMC / Apache NiFi`)**: Governed managed file transfer, partner onboarding, and edge provenance routing.
 - **Operational Data Store (ODS) & MDM Golden Records**: Low-latency operational serving and mastered golden-record entity resolution feeding both real-time apps and the Silver Lakehouse zone.
@@ -33,7 +34,7 @@ AegisLake converges two historically fragmented enterprise planes—**Real-Time 
 - **Structured Table Layer (`Apache Iceberg v3`)**: Medallion zones (**Bronze** immutable raw, **Silver** cleansed/conformed/Data Vault 2.0, **Gold** dimensional domain marts) with ACID guarantees, hidden partitioning, time travel, and **Write-Audit-Publish (WAP)** branching.
 - **Unstructured Versioning (`LakeFS`)**: Git-like branching/tagging scoped strictly to unstructured AI corpora (documents, audio, video, model checkpoints) to avoid conflict with Iceberg table refs.
 - **Hybrid Knowledge Store (`Qdrant / LanceDB + Neo4j`)**: Vector embeddings and entity knowledge graphs for hybrid RAG retrieval.
-- **Catalog & Federated Metalake (`Apache Polaris + Apache Gravitino`)**: Polaris serves as the standard Iceberg REST catalog with short-lived credential vending; Gravitino federates governance across Iceberg, Kafka topics, unstructured filesets, and ML models.
+- **Catalog & Federated Metalake (`Apache Polaris + Apache Gravitino`)**: Polaris serves as the standard Iceberg REST catalog with short-lived credential vending; Gravitino federates governance across Iceberg, Kafka topics, unstructured filesets, and ML models. Row and column policy applies only on the access paths listed in the enforcement matrix ([ADR-008](../adr/ADR-008-authorization-enforcement-matrix.md)).
 
 ### Layer 3 — Elastic Compute, Data Products & Semantic Serving
 - **Stream Processing (`Apache Flink`)**: Stateful event-time windowing, CDC enrichment, real-time alerts, and streaming feature computation managed via the Flink Kubernetes Operator.

@@ -216,7 +216,7 @@
               AEGISLAKE — SELF-EVOLVING AGENTIC DATA &amp; AI PLATFORM ARCHITECTURE
             </text>
             <text x="26" y="57" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="12.5" font-weight="500" fill="#E2E8F0">
-              Open Multimodal Lakehouse · Event-First Integration &amp; ODS · 7-Layer GenAI &amp; MCP Runtime · Autonomous 'Self-X' Control Plane
+              Open Multimodal Lakehouse · Event-First Integration &amp; ODS · 7-Capability GenAI &amp; MCP Runtime · Bounded-Autonomy 'Self-X' Control Plane
             </text>
             <text x="26" y="79" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="11" font-weight="500" fill="#94A3B8">
               Chief Data Architecture Blueprint by Ahmed Salem | github.com/salemfcih/Agentic-Data-Platform | NIST SP 800-207 · NCA ECC-2:2024 · ISO/IEC 42001
@@ -243,7 +243,7 @@
             <!-- Legend Item 3: Self-X Control Loops -->
             <line x1="1410" y1="70" x2="1446" y2="70" stroke="#C084FC" stroke-width="2.2" stroke-dasharray="5,3.5" marker-start="url(#arrow-selfx-light-rev)" marker-end="url(#arrow-selfx-light)" />
             <text x="1456" y="74" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-size="11" font-weight="600" fill="#F8FAFC">
-              Self-X Control Loops (Telemetry · Auto-Heal · Auto-Evolve · Elastic Scale)
+              Self-X Control Loops (Telemetry · Heal · Evolve · Scale · Bounded by ADR-009)
             </text>
           </g>
 
@@ -519,19 +519,21 @@
             badge: 'IDENTITY',
             bullets: [
               'Ping Identity / Keycloak (OAuth2/OIDC)',
-              'SPIFFE / SPIRE Cryptographic SVIDs',
-              'PKI mTLS for External Partner Feeds',
-              'Zero Static Keys · Short-Lived Tokens'
+              'SPIFFE / SPIRE Workload SVIDs',
+              'Token Exchange: Subject · Actor · Task',
+              'Audience-Bound, Short-Lived Tokens',
+              'PKI mTLS for External Partner Feeds'
             ]
           },
           {
             title: 'Fine-Grained Policy & Privacy',
             badge: 'POLICY',
             bullets: [
+              'One Policy Source + Enforcement Matrix',
               'Apache Ranger (Row/Col Masking)',
               'OPA Rego (API, MCP & Agent AuthZ)',
               'Presidio / Cloud DLP PII Discovery',
-              'Polaris Scoped Credential Vending'
+              'Unclassified = Restricted (Fail Closed)'
             ]
           },
           {
@@ -550,7 +552,7 @@
             bullets: [
               'Soda v4 Automated Quality Gates',
               'ODCS v3 YAML Data Contracts',
-              'Iceberg Metadata-Level Assertions',
+              'Completeness & Reconciliation Checks',
               'Schema Registry Compatibility Checks'
             ]
           },
@@ -560,7 +562,7 @@
             bullets: [
               'Certified Datasets, Dashboards & Models',
               'Business Owner & Technical Steward',
-              'Freshness SLAs & Reuse-First Catalog',
+              'Freshness, Retention & Erasure SLAs',
               'Bronze \u2192 Silver \u2192 Gold Certification'
             ]
           },
@@ -575,14 +577,14 @@
             ]
           },
           {
-            title: '2026 Lifecycle Audits',
-            badge: '6 ADRS',
+            title: 'Architecture Decisions',
+            badge: '10 ADRS',
             bullets: [
-              'ADR-001: Ozone/Ceph vs MinIO CE',
-              'ADR-002: Gravitino + Polaris Metalake',
-              'ADR-003: Iceberg WAP vs LakeFS Scope',
-              'ADR-004: Langfuse+Evidently vs WhyLabs',
-              'ADR-005/006: Semantic+MCP & Kafka+dlt'
+              'ADR-001\u2013006: Storage · Catalog · WAP · Evals · MCP',
+              'ADR-007: Agent Identity & Delegation',
+              'ADR-008: AuthZ Enforcement Matrix',
+              'ADR-009: Autonomy Levels & Safety',
+              'ADR-010: Resilience · Tenancy · Lifecycle'
             ]
           }
         ];
@@ -624,29 +626,30 @@
         drawPillarFrame(
           root, px, py, pw, ph,
           "6. AUTONOMOUS 'SELF-X' PLANE",
-          'Sense \u2192 Plan \u2192 OPA \u2192 Act',
+          'Sense \u2192 Plan \u2192 Policy \u2192 Act \u2192 Verify',
           '#6D28D9', '#F5F3FF', '#EDE9FE'
         );
 
         const cards = [
           {
-            title: 'Unified Telemetry Backbone',
-            badge: 'TELEMETRY',
+            title: 'Autonomy & Safety Guardrails',
+            badge: 'ADR-009',
             bullets: [
-              'OpenTelemetry (Metrics · Logs · Traces)',
-              'Grafana LGTM (Mimir · Loki · Tempo)',
-              'OpenLineage Pipeline Graph Events',
-              'Enterprise APM (Dynatrace · Splunk)'
+              'Autonomy Ceiling per Action (L0\u2013L3)',
+              'Proposer \u2260 Approver (Two-Key Publish)',
+              'Action Budgets & Tested Rollback',
+              'Human-Operated Kill Switch'
             ]
           },
           {
-            title: 'ML & Agentic Observability',
-            badge: 'AI EVALS',
+            title: 'Telemetry & AI Observability',
+            badge: 'OBSERVE',
             bullets: [
-              'Evidently AI (Data & Concept Drift)',
-              'Langfuse (LLM Traces & Faithfulness)',
-              'Tool-Call Accuracy & Token Cost SLA',
-              'Replaces Discontinued WhyLabs'
+              'OpenTelemetry + PII Redaction at Collect',
+              'Grafana LGTM (Mimir · Loki · Tempo)',
+              'OpenLineage Pipeline Graph Events',
+              'Evidently (Drift) · Langfuse (LLM Traces)',
+              'Enterprise APM (Dynatrace · Splunk)'
             ]
           },
           {
@@ -663,10 +666,11 @@
             title: '2. SELF-HEAL (Reliability)',
             badge: 'HEAL',
             bullets: [
-              'Zero-Poisoning Iceberg WAP Branches',
-              'Auto-Quarantine Malformed Payloads',
+              'Audit-Branch Isolation (Iceberg WAP)',
+              'Quarantine on Branch, Never on Main',
+              'Complete-or-Hold per Data Contract',
               'Schema Diff Diagnosis & GitOps PR',
-              'Temporal Orchestrated DLQ Replay'
+              'Idempotent DLQ Replay via Temporal'
             ]
           },
           {
@@ -676,7 +680,7 @@
               'Detects New AsyncAPI / Schema Specs',
               'Scaffolds SQLMesh / dbt & ODCS PRs',
               'Flags KPI & Semantic Layer Drift',
-              'Auto-Registers Governed MCP Tools'
+              'Proposes MCP Tools via Reviewed PR'
             ]
           },
           {
@@ -693,11 +697,11 @@
             title: '5-6. SELF-GOVERN & SCALE',
             badge: 'GOV+SCALE',
             bullets: [
-              'Auto-DLP Tagging & Ranger Masking',
-              'OPA Session Kill-Switch on Anomaly',
-              'KEDA Scaling on Kafka Lag & Trino Q',
+              'Mask by Default, Then Classify',
+              'OPA Session Revocation on Anomaly',
+              'Flink Autoscaler · KEDA on Kafka Lag',
               'KServe GPU Scale-to-Zero & Burst',
-              'Budget Quotas & Zero-Trust Enforced'
+              'Per-Domain Quotas & Cost Budgets'
             ]
           }
         ];
@@ -796,7 +800,7 @@
         const cards = [
           { title: 'API Gateway', badge: 'API', bullets: ['Apigee Hybrid / Kong', 'mTLS · OAuth2 · Quota', 'Expose APIs as MCP'] },
           { title: 'Event Backbone', badge: 'STREAM', bullets: ['Confluent Kafka / CFK', 'Schema Registry Avro', 'Replayable Event Log'] },
-          { title: 'Zero-Code CDC', badge: 'CDC', bullets: ['Debezium / Connect', 'Oracle/PG Log Sync', 'Zero Custom Code'] },
+          { title: 'Log-Based CDC', badge: 'CDC', bullets: ['Debezium / Connect', 'Oracle/PG Log Sync', 'Config, Not Custom Code'] },
           { title: 'Modern ELT', badge: 'ELT', bullets: ['dlt / Airbyte Loads', 'Schema-Evolving ELT', 'Replaces n8n Bulk'] },
           { title: 'B2B / MFT Edge', badge: 'MFT', bullets: ['Informatica IDMC', 'Apache NiFi Routing', 'SFTP & Provenance'] },
           { title: 'ODS & MDM', badge: 'ODS', bullets: ['Operational Store', 'MDM Golden Records', 'Near-Real-Time API'] }
@@ -853,7 +857,7 @@
           {
             title: 'Hybrid Knowledge Store',
             badge: 'VEC+GRAPH',
-            bullets: ['Qdrant / LanceDB (Vector Index)', 'Neo4j (Entity Knowledge Graph)', 'ACL-Tagged Document Chunks']
+            bullets: ['Qdrant / LanceDB (Vector Index)', 'Neo4j (Entity Knowledge Graph)', 'ACL-Filtered Retrieval per User']
           }
         ];
 
@@ -883,7 +887,7 @@
           {
             title: 'Apache Polaris (Iceberg REST Catalog)',
             badge: 'ICEBERG REST',
-            desc: 'ASF Top-Level REST Spec · Two-Level RBAC · Short-Lived S3/Ozone Credential Vending'
+            desc: 'ASF Top-Level Project · Two-Level RBAC · Short-Lived Credentials, Trusted Engines for Sensitive Data'
           },
           {
             title: 'Apache Gravitino (Federated Metalake)',
@@ -939,7 +943,7 @@
           { title: 'Batch & AI', badge: 'SPARK+RAY', bullets: ['Apache Spark + Ray', 'Petabyte ETL/Comp.', 'Multimodal AI Prep'] },
           { title: 'SQL Transforms', badge: 'ELT/SQL', bullets: ['SQLMesh / dbt Core', 'Data Vault / Medall.', 'Tests + OpenLineage'] },
           { title: 'SQL & Fast OLAP', badge: 'SERVING', bullets: ['Trino (Federated)', 'StarRocks (Sub-50ms)', 'Zero-Copy Virtual.'] },
-          { title: 'Semantic Layer', badge: 'KPI TRUTH', bullets: ['Cube / MetricFlow', 'Certified KPI Truth', 'Zero LLM SQL Drift'] },
+          { title: 'Semantic Layer', badge: 'KPI TRUTH', bullets: ['Cube / MetricFlow', 'Certified KPI Truth', 'KPIs, Not Raw SQL'] },
           { title: 'Orchestration', badge: 'ORCHEST.', bullets: ['Airflow 3.x (Data)', 'Temporal (Agents)', 'Durable & Asset-Led'] }
         ];
 
@@ -990,7 +994,7 @@
           {
             title: 'Feast Feature Store',
             badge: 'MLOPS',
-            bullets: ['Offline Store: Apache Iceberg', 'Online Store: Valkey (<10ms)', 'Zero Training-Serving Skew']
+            bullets: ['Offline Store: Apache Iceberg', 'Online Store: Valkey (<10ms)', 'One Definition, Offline & Online']
           },
           {
             title: 'MLflow 3.x Registry',
@@ -1026,7 +1030,7 @@
             title: 'Foundation Model Access & Serving (KServe)',
             badge: 'SUB-CAP 6-7',
             bullets: [
-              'LLM Gateway: On-Prem vLLM \u2194 Cloud Routing & Fallback',
+              'LLM Gateway: Classification-Based On-Prem \u2194 Cloud Routing',
               'Classical ML: NVIDIA Triton / ONNX Runtime (<50ms SLA)',
               'Token Rate Limits, Cost Controls & Secrets Isolation'
             ]
@@ -1035,9 +1039,9 @@
             title: 'Governed MCP & A2A Gateway (Zero-Trust)',
             badge: 'SUB-CAP 5/7',
             bullets: [
-              'Central MCP Tool Registry (Semantic KPIs, APIs, DataHub)',
+              'Reviewed Tool Registry (Semantic KPIs, APIs, Lineage)',
               'Input/Output Guardrails: Prompt Injection & PII Filtering',
-              'OPA Policy Enforcement + Mandatory HITL Escalation'
+              'OPA on Registry & Catalog Facts · HITL Escalation'
             ]
           },
           {
@@ -1046,7 +1050,7 @@
             bullets: [
               'LangGraph Domain & Platform Agents on OpenShift Pods',
               'Prompt Templates, Session State & Long-Term Memory',
-              'A2A Multi-Agent Coordination & Sandboxed Execution'
+              'A2A Coordination · Sandbox · Deny-by-Default Egress'
             ]
           }
         ];
@@ -1087,7 +1091,7 @@
           {
             title: 'Semantic-Backed BI',
             badge: 'DASHBOARDS',
-            bullets: ['Power BI · Apache Superset · Looker', 'Zero Metric Drift via Semantic Layer', 'Augmented Insights & Alerting']
+            bullets: ['Power BI · Apache Superset · Looker', 'One KPI Definition via Semantic Layer', 'Augmented Insights & Alerting']
           },
           {
             title: 'AI Workbench & Sandbox',
@@ -1194,7 +1198,7 @@
           'stroke-width': 1.5
         }));
 
-        addText(root, x + w / 2, y + 20, 'HYBRID DEPLOYMENT SUBSTRATE & PORTABILITY MATRIX (IDENTICAL ODCS CONTRACTS · ASYNCAPI EVENTS · ICEBERG REST · MCP INTERFACES)', {
+        addText(root, x + w / 2, y + 20, 'HYBRID DEPLOYMENT SUBSTRATE (PORTABLE INTERFACES: ODCS CONTRACTS · ASYNCAPI EVENTS · ICEBERG REST · MCP \u2014 WORKLOADS ARE RE-PLATFORMED)', {
           size: 10.6,
           weight: 800,
           fill: '#F1F5F9',
@@ -1210,7 +1214,7 @@
           stroke: '#38BDF8',
           'stroke-width': 1.5
         }));
-        addText(root, lx + 14, by + 19, 'SOVEREIGN ON-PREMISES PLANE (RED HAT OPENSHIFT / KUBERNETES · GITOPS ARGOCD · KEDA)', {
+        addText(root, lx + 14, by + 19, 'SOVEREIGN ON-PREMISES PLANE (OPENSHIFT / KUBERNETES · GITOPS · TWO-SITE DR · DOMAIN ISOLATION)', {
           size: 10.6,
           weight: 800,
           fill: '#38BDF8',
@@ -1241,7 +1245,7 @@
           'stroke-width': 2.2,
           'marker-end': 'url(#arrow-port-l)'
         }));
-        addText(root, midX, by + 59, 'PORTABLE', {
+        addText(root, midX, by + 59, 'INTERFACES', {
           size: 8.4,
           weight: 700,
           fill: '#94A3B8',
@@ -1287,7 +1291,7 @@
         const gaps = [
           { y1: 220, y2: 242, label: 'CDC · Event Streams · REST/SaaS APIs · Partner SFTP & Multimodal Files' },
           { y1: 372, y2: 394, label: 'Iceberg WAP Writes · Multimodal Object Drops · Vector & Graph Indexing' },
-          { y1: 604, y2: 626, label: 'Polaris Vended Iceberg Reads · Stateful Flink Streams · Federated SQL' },
+          { y1: 604, y2: 626, label: 'Trusted-Engine Iceberg Reads · Stateful Flink Streams · Federated SQL' },
           { y1: 756, y2: 778, label: 'Certified Features · Semantic KPIs · Gold Data Products · Temporal Flows' },
           { y1: 1048, y2: 1070, label: 'Governed MCP Tools · Certified Data Products · Conversational & BI APIs' }
         ];

@@ -1,0 +1,32 @@
+# KEDA scales ordinary Kafka consumer Deployments on consumer lag.
+# Flink jobs are not scaled this way. See flink-claims-iceberg-sink.yaml, which uses the
+# Flink Kubernetes Operator's own autoscaler.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: claims-feature-updater-autoscaler
+  namespace: aegislake-streaming
+  labels:
+    app.kubernetes.io/part-of: aegislake
+    aegislake.io/control-loop: self-scale
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: claims-feature-updater
+  pollingInterval: 15
+  cooldownPeriod: 120
+  minReplicaCount: 2
+  # Keep at or below the partition count of the topic (12 in the event catalog).
+  maxReplicaCount: 12
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: kafka.example.internal:9093
+        consumerGroup: claims-feature-updater-cg
+        topic: ent.claims.submitted.v1
+        lagThreshold: "5000"
+        activationLagThreshold: "500"
+        tls: enable
+      authenticationRef:
+        name: kafka-mtls-oauth-trigger-auth
